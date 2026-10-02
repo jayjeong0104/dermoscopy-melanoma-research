@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "model_id": "melanoma-effnetv2b1-v0.1.0-research",
+  "checkpoint_file": "melanoma-effnetv2b1-v0.1.0-research.keras",
+  "checkpoint_sha256": "62c7603e41ee4d30f43f6b4cb2c129cedb3fe16efd8cd1a9fae9fef967538171",
+  "checkpoint_bytes": 144230612,
+  "tensorflow_version": "2.21.0",
+  "keras_serialization_version": "3.15.1",
+  "original_run": "melanoma_v1/run_20260822_111527",
+  "binary_target": "melanoma versus non-melanoma (including other skin cancers)",
+  "clinical_use_validated": false,
+  "inference": {
+    "image_size": 300,
+    "preprocessing": "TensorFlow antialiased bilinear resize, cast float32, divide by 255; keep model internal rescaling",
+    "metadata_policy": "unknown for all inference images",
+    "metadata_age_median": 55.0,
+    "metadata_feature_names": [
+      "age_scaled",
+      "age_missing",
+      "sex_female",
+      "sex_male",
+      "sex_unknown",
+      "site_head_neck",
+      "site_torso",
+      "site_upper_extremity",
+      "site_lower_extremity",
+      "site_acral",
+      "site_genital",
+      "site_unknown"
+    ],
+    "tta_transforms": 8,
+    "tta_scheme": "legacy_v1",
+    "direct_weight": 0.35000000000000003,
+    "temperature": 0.76,
+    "threshold": 0.1,
+    "image_aggregation": "Same-lesion direct-head mean logits; arithmetic mean diagnosis probabilities",
+    "diagnosis_order": [
+      "AK",
+      "BCC",
+      "BKL",
+      "DF",
+      "MEL",
+      "NV",
+      "SCC",
+      "VASC"
+    ]
+  }
+}

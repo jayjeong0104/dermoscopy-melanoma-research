@@ -1,0 +1,17 @@
+{
+  "age_median": 55.0,
+  "feature_names": [
+    "age_scaled",
+    "age_missing",
+    "sex_female",
+    "sex_male",
+    "sex_unknown",
+    "site_head_neck",
+    "site_torso",
+    "site_upper_extremity",
+    "site_lower_extremity",
+    "site_acral",
+    "site_genital",
+    "site_unknown"
+  ]
+}

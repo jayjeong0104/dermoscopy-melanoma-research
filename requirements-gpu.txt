@@ -1,0 +1,4 @@
+# Optional WSL/Linux NVIDIA dependencies. Use a separate environment.
+# Publication smoke checks use CPU; this file is not a new GPU compatibility claim.
+-r requirements.txt
+tensorflow[and-cuda]==2.21.0

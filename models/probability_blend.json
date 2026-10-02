@@ -1,0 +1,25 @@
+{
+  "selection_unit": "lesion",
+  "selection_split": "validation",
+  "direct_weight": 0.35000000000000003,
+  "diagnosis_target_weight": 0.6499999999999999,
+  "selected_validation_metrics": {
+    "direct_weight": 0.35000000000000003,
+    "roc_auc": 0.932201946364096,
+    "pr_auc": 0.5657066300272213,
+    "brier_score": 0.06714212894439697,
+    "log_loss": 0.22432748973369598
+  },
+  "direct_validation_metrics": {
+    "roc_auc": 0.9276252406341209,
+    "pr_auc": 0.5537717752886782,
+    "brier_score": 0.08308505266904831,
+    "log_loss": 0.27634456753730774
+  },
+  "diagnosis_target_validation_metrics": {
+    "roc_auc": 0.9335778856134063,
+    "pr_auc": 0.5629472720438855,
+    "brier_score": 0.06345979869365692,
+    "log_loss": 0.2065604031085968
+  }
+}

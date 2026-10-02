@@ -1,0 +1,26 @@
+{
+  "verified_on": "2026-10-02",
+  "python": "3.12",
+  "tensorflow": "2.21.0",
+  "keras": "3.15.1",
+  "device": "native Windows CPU",
+  "unit_tests": {
+    "command": "python -m unittest discover -p 'test_*.py' -q",
+    "passed": 151,
+    "failed": 0
+  },
+  "retained_checkpoint_smoke": {
+    "sha256_verified": true,
+    "safe_mode_deserialization": true,
+    "local_validation_jpeg_inference": true,
+    "finite_score_and_research_flag_returned": true,
+    "eight_view_legacy_recipe": true,
+    "uploaded_input_images_or_individual_records": false
+  },
+  "limitations": [
+    "No new held-out performance evaluation was performed for publication.",
+    "CPU mixed-float16 arithmetic is not guaranteed to be bit-for-bit identical to the original GPU environment.",
+    "Validation images and output records used for the smoke check remain local.",
+    "Tests confirm software behavior, not clinical readiness."
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "method": "temperature_scaling",
+  "evaluation_unit": "lesion",
+  "tta_transforms": 8,
+  "temperature": 0.76,
+  "validation_log_loss": 0.21647244852456415,
+  "raw_validation_metrics": {
+    "roc_auc": 0.932201946364096,
+    "pr_auc": 0.5657066300272213,
+    "brier_score": 0.06714212894439697,
+    "log_loss": 0.22432748973369598
+  },
+  "calibrated_validation_metrics": {
+    "roc_auc": 0.932201946364096,
+    "pr_auc": 0.5657066300272213,
+    "brier_score": 0.06605002284049988,
+    "log_loss": 0.21647243201732635
+  }
+}

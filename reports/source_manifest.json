@@ -1,0 +1,325 @@
+{
+  "purpose": "SHA-256 of the original research source at publication; publication-only files are tracked by Git.",
+  "files": [
+    {
+      "file": "analyze_recovery_errors.py",
+      "sha256": "0845c2ba1b6697ae8cbd237e70e8ac3da4a4432e358585879246e42616f5902d"
+    },
+    {
+      "file": "artifact_io.py",
+      "sha256": "66144616789cf299705c3de853aadc7794f5464cf2d38a26bed7f8e94a10b464"
+    },
+    {
+      "file": "assess_market_readiness.py",
+      "sha256": "eaee98b49d77dd8a164a501b055f479e545a5ed529b7a7e9e6900390f7628a8b"
+    },
+    {
+      "file": "audit_error_reduction.py",
+      "sha256": "58fead79e5a4fc4f8384487e7e50286280dfb9d87797345b96cf432d5e274676"
+    },
+    {
+      "file": "audit_jpeg_decode.py",
+      "sha256": "94ef7dc5da9356a52af6ac0b5797f86f01b30d577c47ba476b68afb3649c6411"
+    },
+    {
+      "file": "audit_operating_policy.py",
+      "sha256": "b236739a61bb5c260a04b6e82ad98b25ddf2efb6e6720f720e43801913659e4f"
+    },
+    {
+      "file": "audit_sampling_candidates.py",
+      "sha256": "8d29c759c5ff3f81834bc6a7b429d9c0c57c53554b6db05074bec16a3142bf92"
+    },
+    {
+      "file": "audit_training_crops.py",
+      "sha256": "f88dc0806b22719613decb0cd7a9671fa56d6c7c5c6b4c9bcda4e76550c36efb"
+    },
+    {
+      "file": "build_grouped_folds.py",
+      "sha256": "a286870a63ec5a489eda3f6228035bd5580af028e5670063b138fa9645060924"
+    },
+    {
+      "file": "build_siim_training_folds.py",
+      "sha256": "39101a22996c68d888d1af63c4bae5abe3475d1e47bc3b163b3882cb718f97b9"
+    },
+    {
+      "file": "compare_model_runs.py",
+      "sha256": "1d200ef60f4594a59fa32ed68326971d7caa6265604bed6f25ed7b3f354c5087"
+    },
+    {
+      "file": "context_study_common.py",
+      "sha256": "2eeaccf7971f3433fbab5bcd5f47efaf0e476d055dc5912a0f864da27adad7e6"
+    },
+    {
+      "file": "converged_probe.py",
+      "sha256": "c26896b08aa3dfc46e82fb5244a6646eed426acde6365c46fa6a57b93f76911f"
+    },
+    {
+      "file": "diagnosis_probe.py",
+      "sha256": "42a1884e102d3dae5f4814eb7fa1398e0e9711013c56aa3c39bc54bac2448c2b"
+    },
+    {
+      "file": "evaluate_derm12345.py",
+      "sha256": "61ef54bc6ae7e2882fe6f29ff0d470288cc03b01631ab8f64bf5167f2e763b35"
+    },
+    {
+      "file": "evaluate_multitask_ph2.py",
+      "sha256": "536462b6d171562468a3c3dd3f2e1edc2895b1691825853633cd5ff3c89f2481"
+    },
+    {
+      "file": "evaluate_ph2.py",
+      "sha256": "478b91cf05359c900fbc06cc9ca45757cb340f774ad03213fb5591b2a0f75994"
+    },
+    {
+      "file": "evaluate_prediction_ensemble.py",
+      "sha256": "cacc6a88c00079cb8cc460ed1136eb84210c73638004da333368e2daecbbfb83"
+    },
+    {
+      "file": "evaluate_risk_head_ablation.py",
+      "sha256": "97b6129c0b2a60ff141e1fbf553897dbea36491aa4299dde391acc208f6f515d"
+    },
+    {
+      "file": "evaluate_saved_run.py",
+      "sha256": "c2f3e68c1960f4b9069c9b34e9ac2bcc407bf4a8f1ae99430dfc6b1fdb4332e0"
+    },
+    {
+      "file": "export_converged_head.py",
+      "sha256": "d5629c62a1a60a7c7dbe12d57592727cc34af49c97cf5e1d2948135326d4e31b"
+    },
+    {
+      "file": "extract_foundation_features.py",
+      "sha256": "64fab9daf51bcdba4df7cb565eb4b15ca990e97718e2f73de1b6dd7e156bf0ed"
+    },
+    {
+      "file": "extract_panderm_context.py",
+      "sha256": "8388d3342f779474148737c63825bb16bbd7bc3a4dd0da83cde985763e1227bf"
+    },
+    {
+      "file": "finalize_multitask_run.py",
+      "sha256": "d2e831df0040485f5e6ff8b080a6f58aa5e280bd37bef0b4a2fdaf1a69a1a59b"
+    },
+    {
+      "file": "foundation_common.py",
+      "sha256": "2861dd0b5bef9130e82994949bb057aef9f9287e73f5e0e7e7b55b2c2a6d992b"
+    },
+    {
+      "file": "launch_context_study.sh",
+      "sha256": "af1fb3b99f7d78c6294a5334b65ab44349c5be98226be7d582e43b2ae5137576"
+    },
+    {
+      "file": "launch_diagnosis_study.sh",
+      "sha256": "f7ceefe2a44408c435a8f27e7a15649c3190b8afb6f971e8ead95b602fb85f10"
+    },
+    {
+      "file": "launch_foundation_experiment.sh",
+      "sha256": "f031fd1a3da487e5ee700cc324a1cac18eaaf60167458d0d4208c9ac1f6830d8"
+    },
+    {
+      "file": "launch_gpu_training.sh",
+      "sha256": "6028939a9bd1773c51363cdb25202308874501a43ff60169b1ae4c16acaf2085"
+    },
+    {
+      "file": "launch_melanoma_training.sh",
+      "sha256": "3a114458903add2c78b77766c7081e88eaed2ade82352eefbe7a4b26e0f8d573"
+    },
+    {
+      "file": "launch_operating_recovery.sh",
+      "sha256": "1a9ee8bfd256ef4cfe2c40ee2f40c54dae493b9cfdc296e5b75f6956d574b283"
+    },
+    {
+      "file": "launch_recovery_pilot.sh",
+      "sha256": "5e63985670fbaa98217c540caab10f98d4f98e9284513fdc35b5f9fcc6c9457e"
+    },
+    {
+      "file": "launch_sampling_recovery.sh",
+      "sha256": "0962a9b3c9f6a957b76c6b3dc2bbe5e54c0a35b70e55456c60641b52f9036198"
+    },
+    {
+      "file": "launch_siim_improvement_training.sh",
+      "sha256": "75e5905606adc2e4b68afa725f396cfe58c6e472958c24abb33627c9464aec7e"
+    },
+    {
+      "file": "launch_targeted_recovery.sh",
+      "sha256": "e6677c04ef820de760c54f6a203d013453644ff935f901ee691d220e5894bffa"
+    },
+    {
+      "file": "lesion_sampling.py",
+      "sha256": "3ee79ccfdb602b0210b88ac2ac73bdf9557a99f15457265d020ee22eeaa55bb9"
+    },
+    {
+      "file": "operating_policy.py",
+      "sha256": "16a626162d557e5bead9a5ff319c66503325949172aff7974e641cb9951b34d4"
+    },
+    {
+      "file": "prepare_combined_dataset.py",
+      "sha256": "47e1f3facf96359d3f28928437431fdf853aa5473c1641adc90db1aca394ecda"
+    },
+    {
+      "file": "prepare_derm12345_training.py",
+      "sha256": "1269c303f83ab4d9966ec41cce85dbacc3cf6d41a13b718545f28493ec7c788e"
+    },
+    {
+      "file": "prepare_siim_isic2020.py",
+      "sha256": "60c9a50a1d530820ef1679f6ac0d242763b52d027c55862f0562d24b7ab9134e"
+    },
+    {
+      "file": "probe_gpu_libraries.py",
+      "sha256": "5d4bd84a98b52ba9e0ea192bccbc9de5a02782b1beffab0a88e0e1945cfbf3a5"
+    },
+    {
+      "file": "queue_diagnosis_study.py",
+      "sha256": "c6e03d9e4de8c7f941a63f3356ab2c4a600c24518f667554c07fe8b64d2463ea"
+    },
+    {
+      "file": "register_foundation_io_repair.py",
+      "sha256": "0cd6349b8aa97f8448ae6dffa016f7c7c439fe7232708860e9f52a02a2a82ee6"
+    },
+    {
+      "file": "run_context_study.py",
+      "sha256": "499baaeb9bba59b2f4078f51e67d72741f5abdbac3ebba71afab352aadd7bbd1"
+    },
+    {
+      "file": "run_convergence_study.py",
+      "sha256": "e0227b2b01f181c4c95d323d2ce3b60956f00ceda088f5fbb4ee7f5bae5e8c07"
+    },
+    {
+      "file": "run_diagnosis_study.py",
+      "sha256": "5e275ee223878ea3252e4e4d85a9b78f9033e983b09039eebb75868b2a35d291"
+    },
+    {
+      "file": "run_foundation_experiment.py",
+      "sha256": "e8996da4eb98de701b30a25974e1f210569ca8bb04201b7665dc4886424798f4"
+    },
+    {
+      "file": "run_operating_recovery.py",
+      "sha256": "1da00405d1c8880ac312679275cc37df45a2b0148250b8668cbc93bb019450c9"
+    },
+    {
+      "file": "run_recovery_pilot.py",
+      "sha256": "00ee86ad77d1956a7b8c3dea5ba7c2c63e0b8942323250afd37b104d0eb9f722"
+    },
+    {
+      "file": "run_sampling_recovery.py",
+      "sha256": "cb98fb62fe995f2cac5e04befe2ef248578b4cced4db14bac4cf71a749e4ffe3"
+    },
+    {
+      "file": "run_targeted_recovery.py",
+      "sha256": "f73e3ba57330bc03038507f39f8540a2a5624c925fbafbede6dffc579f971e43"
+    },
+    {
+      "file": "run_wsl_python.sh",
+      "sha256": "db68cc00fadc8c4ed307625907162d4e599870827694cfe73ba3236bab62313e"
+    },
+    {
+      "file": "setup_feature_encoder.sh",
+      "sha256": "d24b8201ad84648b6f6c267a1d2e2bcf51593cebfd961cdc11a0d2ecb2cddb78"
+    },
+    {
+      "file": "setup_wsl_gpu.sh",
+      "sha256": "3bf5fa3deb7d62aabbe87e034a93c530607722ba5f461c39cbc1f56d860f387e"
+    },
+    {
+      "file": "smoke_test_multitask_v2.py",
+      "sha256": "3967781ac0c83748ed7a1af8804769ede4896c550a3b44afecec1f9a6117cd59"
+    },
+    {
+      "file": "study_precision.py",
+      "sha256": "41a0c2b6d1e4f44eebd596907a7a806bdf7d950101f6e4818a09ba316c81ffc9"
+    },
+    {
+      "file": "summarize_convergence.py",
+      "sha256": "0332ea77fa1e1f5997b95989f99b08f88e82dad414a6359b334afb85c29e0288"
+    },
+    {
+      "file": "targeted_sampling.py",
+      "sha256": "83bff01406d3fe10c3dcc74a5dcc8876974b1323acd3414df2a5ec53379258fa"
+    },
+    {
+      "file": "test_analyze_recovery_errors.py",
+      "sha256": "150a6a0289465553c94a3a31d2fdca56fd6b24d88e82d68260ae73f7e6be7bc8"
+    },
+    {
+      "file": "test_artifact_io.py",
+      "sha256": "c363aa2bd9be23d94976bf03ee931822730c863aa1303fbcfc62b5c77e50bf84"
+    },
+    {
+      "file": "test_compare_model_runs.py",
+      "sha256": "7fe0f72b7aa1a0ff264c8fb52652a2032e5bfb4c8939371d9a734d9b9291d295"
+    },
+    {
+      "file": "test_context_study.py",
+      "sha256": "8fd2c98087c51acf115bd8506f6e361d68b028da458cfac32df3068827503852"
+    },
+    {
+      "file": "test_converged_probe.py",
+      "sha256": "d03a2308bad5c3d87522d8619244607952ff45ef329251ddef77f0ae81016cbd"
+    },
+    {
+      "file": "test_diagnosis_study.py",
+      "sha256": "719a99e5a96d61b6e68991eaf8eec078e9a1568e66bf4b8cd9e55de1af5c8120"
+    },
+    {
+      "file": "test_error_reduction.py",
+      "sha256": "14d632978f5efd541bf2c40ac3ee63e45d15900f2ec596baeaefb150a7cd91d1"
+    },
+    {
+      "file": "test_foundation_experiment.py",
+      "sha256": "ab5a38d4fa14a8f6f2d707568614e12aeb7d20831175850dcbf3bb44df010c47"
+    },
+    {
+      "file": "test_lesion_sampling.py",
+      "sha256": "9db0590806b88265bd03023f4a1cdfa2e5b2c1a49be212efbd0fc977e67f5913"
+    },
+    {
+      "file": "test_operating_policy.py",
+      "sha256": "ff9e05cbdc71610e70631b317396f29748c48f0c993bd02d9489345936ad481a"
+    },
+    {
+      "file": "test_precision_study.py",
+      "sha256": "511b0fe2488b817d0ce8be48012970d7f9788367348e960b4f8768c0542fde8e"
+    },
+    {
+      "file": "test_run_operating_recovery.py",
+      "sha256": "fa914fed0382197d22c34dd54a9b26f81bf0189626b7aecb5118750b82bafb50"
+    },
+    {
+      "file": "test_run_recovery_pilot.py",
+      "sha256": "6325ce8af1112d8ae88a62ec798dfa955c8047dfe8e205d5b640b8efa375151e"
+    },
+    {
+      "file": "test_run_sampling_recovery.py",
+      "sha256": "b6ad4e1e9e0cf3b0a6a8205c2695f26340ade073b58403758f31502a49c521a1"
+    },
+    {
+      "file": "test_run_targeted_recovery.py",
+      "sha256": "5584b47619069b77d2fc2b229395091c19b22aa7b8860182b5da2f43c6d2e021"
+    },
+    {
+      "file": "test_targeted_recovery.py",
+      "sha256": "26bbeeb06fa387ca161958568d3a1e036f0df529944c776e444b8b4ba98d2495"
+    },
+    {
+      "file": "test_train_multitask_helpers.py",
+      "sha256": "132003008581345d3c2aa553535ca3f7655b2298093724ba86c81514f72a86b8"
+    },
+    {
+      "file": "train_foundation_head.py",
+      "sha256": "c0d6a31233cf313063b656a793862f48a358a182e6b90b90c012582768fd27ad"
+    },
+    {
+      "file": "train_multitask.py",
+      "sha256": "ad66c8bb0c61891205c479c4e1a7ab4fbe22d5b17e34446999f33189ce26752d"
+    },
+    {
+      "file": "train_transfer.py",
+      "sha256": "efc548ed10bc1c14beba3189cf1d8d876bbd8fbf1fc9fc30f0fec65239518bc8"
+    },
+    {
+      "file": "train.py",
+      "sha256": "4b95c08ec72a24c0c5c5217a221362a8411b9a868d5deb6f44971a55c5ac5bf7"
+    },
+    {
+      "file": "verify_duplicates.py",
+      "sha256": "dcbc7b23c5a1c564c2d71820efec7d132f5c8bf9694cc0fb1e839aaa40488a08"
+    }
+  ]
+}

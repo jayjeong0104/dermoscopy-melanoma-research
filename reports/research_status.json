@@ -1,0 +1,122 @@
+{
+  "snapshot_date": "2026-10-02",
+  "retained_model": "melanoma-effnetv2b1-v0.1.0-research",
+  "promotion_decision": "retain_baseline",
+  "historical_test_report": "historical_internal_test_metrics.json",
+  "historical_test_protocol": "Archived internal held-out lesions, eight-view legacy TTA, validation-selected blend, temperature, and threshold. Not a new independent confirmation.",
+  "reused_development_protocol": "One-view, fixed 0.5 output blend, five group-cross-fitted thresholds. Different protocol from release inference.",
+  "reused_development_baseline": {
+    "policy_version": "fixed_blend_group_crossfit_v1",
+    "minimum_calibration_recall": 0.95,
+    "recall": 0.9482758620689655,
+    "specificity": 0.7239516336506303,
+    "precision": 0.20400593471810088,
+    "accuracy": 0.7395259755805602,
+    "false_positives": 1073,
+    "false_negatives": 15,
+    "true_positives": 275,
+    "true_negatives": 2814,
+    "pr_auc": 0.5637412580957085,
+    "roc_auc": 0.9318577397691686,
+    "folds": [
+      {
+        "fold": 0,
+        "threshold": 0.1705263257026672,
+        "calibration_lesions": 3341,
+        "scoring_lesions": 836,
+        "recall": 0.9491525423728814,
+        "specificity": 0.7297297297297297,
+        "precision": 0.21052631578947367,
+        "accuracy": 0.7452153110047847,
+        "false_positives": 210,
+        "false_negatives": 3,
+        "true_positives": 56,
+        "true_negatives": 567
+      },
+      {
+        "fold": 1,
+        "threshold": 0.1738536059856414,
+        "calibration_lesions": 3341,
+        "scoring_lesions": 836,
+        "recall": 0.9310344827586207,
+        "specificity": 0.7107969151670951,
+        "precision": 0.1935483870967742,
+        "accuracy": 0.7260765550239234,
+        "false_positives": 225,
+        "false_negatives": 4,
+        "true_positives": 54,
+        "true_negatives": 553
+      },
+      {
+        "fold": 2,
+        "threshold": 0.1565141975879669,
+        "calibration_lesions": 3342,
+        "scoring_lesions": 835,
+        "recall": 1.0,
+        "specificity": 0.703989703989704,
+        "precision": 0.2013888888888889,
+        "accuracy": 0.7245508982035929,
+        "false_positives": 230,
+        "false_negatives": 0,
+        "true_positives": 58,
+        "true_negatives": 547
+      },
+      {
+        "fold": 3,
+        "threshold": 0.1738536059856414,
+        "calibration_lesions": 3342,
+        "scoring_lesions": 835,
+        "recall": 0.9298245614035088,
+        "specificity": 0.7390745501285347,
+        "precision": 0.20703125,
+        "accuracy": 0.7520958083832335,
+        "false_positives": 203,
+        "false_negatives": 4,
+        "true_positives": 53,
+        "true_negatives": 575
+      },
+      {
+        "fold": 4,
+        "threshold": 0.1738536059856414,
+        "calibration_lesions": 3342,
+        "scoring_lesions": 835,
+        "recall": 0.9310344827586207,
+        "specificity": 0.7361647361647362,
+        "precision": 0.2084942084942085,
+        "accuracy": 0.7497005988023953,
+        "false_positives": 205,
+        "false_negatives": 4,
+        "true_positives": 54,
+        "true_negatives": 572
+      }
+    ],
+    "same_data_threshold_metrics_for_diagnosis_only": {
+      "threshold": 0.1705263257026672,
+      "recall": 0.9517241379310345,
+      "specificity": 0.7244661692822228,
+      "precision": 0.20489977728285078,
+      "accuracy": 0.7402441943978932,
+      "true_positives": 276,
+      "false_positives": 1071,
+      "false_negatives": 14,
+      "true_negatives": 2816,
+      "pr_auc": 0.5637412580957085,
+      "roc_auc": 0.9318577397691686
+    },
+    "limitation": "Development cross-fitting separates threshold calibration from scoring groups, not model development from validation. Repeatedly inspected validation is not an independent test. The requested calibration sensitivity is not guaranteed on scoring folds."
+  },
+  "context_followup": {
+    "status": "complete",
+    "decision": "retain_baseline",
+    "explanation": "Full-frame follow-up did not satisfy the joint acceptance gate. No checkpoint promotion."
+  },
+  "diagnosis_followup": {
+    "status": "incomplete_optimizer_limit",
+    "stage": "cv_diagnosis_l2_0.001_fold3",
+    "iteration_limit": 2000,
+    "solver_message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+    "maximum_gradient": 1.88167E-08,
+    "validated_replacement": false
+  },
+  "publication_validation": "Unit tests and a local inference smoke check verify software packaging only, not clinical performance."
+}
