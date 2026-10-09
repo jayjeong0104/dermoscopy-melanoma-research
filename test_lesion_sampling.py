@@ -1,4 +1,6 @@
 from pathlib import Path
+from dataclasses import asdict
+import json
 from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
@@ -6,7 +8,7 @@ from unittest.mock import patch
 import numpy as np
 import pandas as pd
 
-from lesion_sampling import exposure_audit, lesion_rows, row_dataset
+from lesion_sampling import exposure_audit, lesion_rows, row_dataset, stratum_mass
 import train_multitask as training
 
 
@@ -102,7 +104,9 @@ class LesionSamplingTests(unittest.TestCase):
         with patch("sys.argv", ["train_multitask.py"]):
             args = training.parse_args()
         self.assertEqual(args.sampling_unit, "image")
+        self.assertEqual(args.sampling_mass_unit, "image")
         self.assertIn("sampling_unit", training.RESUME_CONFIG_KEYS)
+        self.assertIn("sampling_mass_unit", training.RESUME_CONFIG_KEYS)
         with TemporaryDirectory() as directory:
             args.manifest = Path(directory) / "manifest.csv"
             args.manifest.touch()
@@ -111,6 +115,73 @@ class LesionSamplingTests(unittest.TestCase):
             args.hard_negative_weights.touch()
             with self.assertRaisesRegex(ValueError, "hard-negative"):
                 training.validate_args(args)
+
+    def test_natural_lesion_mass_is_invariant_to_repeated_photographs(self):
+        positive = example()
+        negatives = example().assign(source="N", diagnosis="NV", target=0,
+            image_id=lambda f: "n_" + f.image_id, lesion_id=lambda f: "n_" + f.lesion_id)
+        negative_rare = negatives.iloc[:1].assign(source="R", diagnosis="DF",
+            image_id="r", lesion_id="rare")
+        frame = pd.concat([positive, negatives, negative_rare], ignore_index=True)
+        report = exposure_audit(frame, alpha=1, positive_fraction=.25, mass_unit="lesion")
+        positive_mass = sum(row["source_diagnosis_probability"] for row in report["strata"] if row["target"])
+        self.assertAlmostEqual(positive_mass, .25)
+        negative_rates = [row["new_each_lesion_probability"] for row in report["strata"] if not row["target"]]
+        np.testing.assert_allclose(negative_rates, [.75 / 4] * 2)
+        duplicated_photos = pd.concat([frame, frame.loc[frame.source.eq("N")].assign(
+            image_id=lambda f: "copy_" + f.image_id)], ignore_index=True)
+        other = exposure_audit(duplicated_photos, alpha=1, positive_fraction=.25, mass_unit="lesion")
+        np.testing.assert_allclose([s["source_diagnosis_probability"] for s in report["strata"]],
+                                   [s["source_diagnosis_probability"] for s in other["strata"]])
+        self.assertEqual(stratum_mass(negatives, 1), len(negatives))
+        self.assertEqual(stratum_mass(negatives, 1, "lesion"), 3)
+
+    def test_invalid_sampling_mass_inputs_are_rejected(self):
+        for unit, alpha in [("patient", 1), ("image", float("nan")), ("lesion", 2)]:
+            with self.assertRaises(ValueError):
+                stratum_mass(example(), alpha, unit)
+        with self.assertRaisesRegex(ValueError, "identities"):
+            stratum_mass(example().assign(lesion_id=None), 1, "lesion")
+
+    def test_legacy_resume_keeps_image_mass_and_rejects_policy_change(self):
+        with patch("sys.argv", ["train_multitask.py"]):
+            args = training.parse_args()
+        config = json.loads(json.dumps(vars(args), default=str))
+        saved = dict(config)
+        saved.pop("sampling_mass_unit")
+        frame = example().assign(age_approx=50, sex="unknown", anatom_site_general="unknown")
+        encoder = training.MetadataEncoder.fit(frame)
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "run_config.json").write_text(json.dumps(saved), encoding="utf-8")
+            (root / "metadata_schema.json").write_text(json.dumps(asdict(encoder)), encoding="utf-8")
+            (root / "split_summary.json").write_text("{}", encoding="utf-8")
+            training.validate_resume_state(root, config, encoder, {})
+            config["sampling_mass_unit"] = "lesion"
+            with self.assertRaisesRegex(ValueError, "sampling_mass_unit"):
+                training.validate_resume_state(root, config, encoder, {})
+
+    def test_realized_mass_counts_lesions_instead_of_repeated_photos(self):
+        tf = training.tf
+        a = example().query("lesion_id == 'lesion_2'").assign(source="A")
+        b = example().drop_duplicates("lesion_id").assign(source="B",
+            image_id=lambda f: "b_" + f.image_id, lesion_id=lambda f: "b_" + f.lesion_id)
+        frame = pd.concat([a, b], ignore_index=True)
+        frame["diagnosis_index"] = training.DIAGNOSIS_TO_INDEX["MEL"]
+        frame["age_approx"], frame["sex"], frame["anatom_site_general"] = 50, "unknown", "unknown"
+        encoder = training.MetadataEncoder.fit(frame)
+        with TemporaryDirectory() as directory:
+            paths = {s: str(Path(directory) / f"{s}.jpg") for s in ("A", "B")}
+            for source, intensity in (("A", 20), ("B", 220)):
+                tf.io.write_file(paths[source], tf.io.encode_jpeg(tf.ones((20, 20, 3), tf.uint8) * intensity))
+            frame["runtime_image_path"] = frame.source.map(paths)
+            for mass_unit, expected in (("image", .9), ("lesion", .25)):
+                ds = training.build_dataset(frame, encoder, 20, 32, True, 1, 42,
+                    sampling_alpha=1, sampling_unit="lesion", sampling_mass_unit=mass_unit)
+                observed = []
+                for inputs, _, _ in ds.take(40):
+                    observed.extend((tf.reduce_mean(inputs["image"], axis=(1, 2, 3)).numpy() < .5).tolist())
+                self.assertLess(abs(np.mean(observed) - expected), .05)
 
     def test_multiple_strata_keep_images_labels_and_class_probability_aligned(self):
         tf = training.tf

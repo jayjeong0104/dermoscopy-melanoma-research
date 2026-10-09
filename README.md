@@ -8,10 +8,10 @@ prediction does **not** mean that a lesion is benign or that a person is healthy
 screening decisions, treatment decisions, or use without clinical assessment.
 No claim of 95% overall accuracy or clinical readiness is made.
 
-## Retained Model
+## Archived Released Model
 
-`melanoma-effnetv2b1-v0.1.0-research` is the retained EfficientNetV2B1 checkpoint,
-not the newest experimental candidate. It uses 300 x 300 RGB images, an image-only
+`melanoma-effnetv2b1-v0.1.0-research` is the archived EfficientNetV2B1 checkpoint
+distributed by the existing release. It uses 300 x 300 RGB images, an image-only
 binary head, and an auxiliary eight-category diagnosis head. The archived
 research inference recipe uses unknown metadata, legacy eight-view augmentation,
 a validation-selected output blend, temperature scaling, and threshold 0.1.
@@ -21,9 +21,17 @@ not in Git history. `models/model_manifest.json` records its exact SHA-256 and
 inference configuration. No dataset, patient-level table, or PanDerm checkpoint
 is included.
 
-## Verified Historical Results
+**Provenance correction (October 2026):** an ancestor of this warm-started
+checkpoint trained on 3,053 images in its later validation split and 3,138 images
+in its later test split. Its historical results cannot establish performance on
+independent holdouts. Grouping the descendant's splits does not remove that
+earlier exposure. The published artifact and inference recipe remain unchanged
+for historical reproducibility; this code update does not publish newer weights.
 
-These are archived observations, not a fresh independent confirmation:
+## Historical Results from the Exposed Lineage
+
+These are archived observations from the exposed lineage, not independent
+performance estimates:
 
 | Evaluation protocol | Lesions | Accuracy | Precision | Sensitivity | Specificity |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -37,7 +45,30 @@ operating point, 270 melanomas were detected, 21 missed, and 1,016 non-melanomas
 flagged. Average precision was 0.5799 and ROC AUC 0.9160.
 
 See [MODEL_CARD.md](MODEL_CARD.md) and [reports/research_status.json](reports/research_status.json)
-for limitations, provenance, and the newer unsuccessful experiments.
+for the provenance correction and historical experiment records.
+
+## Current Development Progress
+
+The current research objective is 95% melanoma sensitivity with fewer false
+alarms in clinical dermoscopy. New runs avoid the known contaminated local
+warm-start lineage. In the latest matched comparison, using the same 4,177
+reused development lesions and group-separated threshold calibration/scoring:
+
+| Development checkpoint | Detected / 290 melanomas | False alarms | Sensitivity | Specificity | Precision |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Clean reference | 274 | 1,284 | 94.48% | 66.97% | 17.59% |
+| Revised sampling reference | 276 | 1,056 | 95.17% | 72.83% | 20.72% |
+
+The revised sampling run is the current **development reference**, with 228
+fewer false alarms in this comparison. Gains vary by source: DERM12345 sensitivity
+fell from 96.83% to 92.06%. Validation has informed checkpoint selection and
+repeated experiments; these results are not an independent clinical confirmation
+or a demonstrated 95% sensitivity floor across sources. The fixed feature-head
+follow-ups did not improve on this reference while meeting the overall target.
+The v0.1 download below still contains the archived model, not this newer run.
+
+See [the aggregate development report](reports/development_progress_20261007.json)
+and [the October 7 review](PIPELINE_REVIEW_20261007.md) for protocols and limitations.
 
 ## Run Research Inference
 
@@ -65,13 +96,13 @@ entry point. It performs no validated image-quality or out-of-distribution check
 It does not upload images or contact a server. Output is a research flag, not a
 diagnosis or a calibrated estimate of an individual's cancer risk.
 
-The command refuses a checkpoint whose SHA-256 differs from the retained model.
+The command refuses a checkpoint whose SHA-256 differs from the archived model.
 It deliberately preserves the archived `legacy_v1` transform sequence, including
 its duplicate orientation, instead of silently changing evaluated preprocessing.
 
 ## Training and Tests
 
-The original training, data-preparation, evaluation, and experiment source is
+The reviewed training, data-preparation, evaluation, and experiment source is
 included for inspection. Obtain data separately from its original providers
 under their terms; see [DATA_SOURCES.md](DATA_SOURCES.md). Configure your own
 manifest and grouped split files. Example:
@@ -81,13 +112,18 @@ python train_multitask.py --manifest data/combined_manifest.csv --binary-target 
 python -m unittest discover -p 'test_*.py' -q
 ```
 
-Publication verification: all 151 unit tests passed with the pinned TensorFlow
-and Keras versions. The actual retained checkpoint also passed a local CPU
-inference smoke check. These checks establish packaging functionality, not
-new medical-performance evidence; see `reports/software_verification.json`.
+The original October 2 publication verification passed 151 unit tests and a
+local CPU inference smoke check of the archived checkpoint. See
+[software verification](reports/software_verification.json) for dated check
+results. Software checks establish packaging functionality, not new medical
+performance evidence.
+
+The October 9 source update passed all 263 discovered tests on native Windows
+CPU. The verification report records the actual dependency versions and test
+log checksum. No new dataset inference or model release was performed.
 
 This example starts a new experiment; it is **not** a claim of reproducing the
-retained checkpoint. That run was warm-started from an earlier local checkpoint.
+archived checkpoint. That run was warm-started from an earlier local checkpoint.
 Full historical reconstruction needs those artifacts and the original split
 assignments, neither of which is included. Recovery scripts require their
 explicitly named local run artifacts and are not turnkey downloads.
@@ -95,8 +131,10 @@ The shell launchers preserve the original local experiment layout; inspect and
 adapt their paths before running them. Optional GPU dependencies are separate
 in `requirements-gpu.txt`; release packaging is verified on CPU.
 
-The diagnosis-aware experimental continuation stopped at an optimizer iteration
-limit before final validation. Do not treat it as a validated replacement.
+The historical diagnosis-aware continuation stopped at an optimizer iteration
+limit before final validation. The convergence check has since been repaired,
+but that study was not resumed because its features inherit the exposed lineage.
+It is not a validated replacement.
 
 ## Access and Licensing
 

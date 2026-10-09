@@ -185,12 +185,28 @@ def load_siim(
 
 
 def melanoma_targets(frame: pd.DataFrame) -> pd.Series:
-    supervised = frame.get(
+    supervised = pd.to_numeric(frame.get(
         "diagnosis_label_available",
         pd.Series(1, index=frame.index, dtype="int32"),
-    ).astype(int)
+    ), errors="raise")
+    if not supervised.isin([0, 1]).all():
+        raise ValueError("diagnosis_label_available must contain only 0 or 1.")
     result = frame["diagnosis"].astype(str).str.upper().eq("MEL").astype("int32")
-    result.loc[supervised.eq(0)] = frame.loc[supervised.eq(0), "target"].astype("int32")
+    explicit = frame.get("melanoma_label", pd.Series(pd.NA, index=frame.index))
+    available = explicit.notna()
+    labels = pd.to_numeric(explicit.loc[available], errors="raise")
+    if not labels.isin([0, 1]).all():
+        raise ValueError("Explicit melanoma_label must contain only 0 or 1.")
+    comparable = supervised.eq(1) & available
+    if not result.loc[comparable].eq(labels.loc[comparable[comparable].index]).all():
+        raise ValueError("Explicit melanoma_label disagrees with the diagnosis.")
+    use_explicit = supervised.eq(0) & available
+    result.loc[use_explicit] = labels.loc[use_explicit[use_explicit].index].astype("int32")
+    fallback = supervised.eq(0) & ~available
+    fallback_labels = pd.to_numeric(frame.loc[fallback, "target"], errors="raise")
+    if not fallback_labels.isin([0, 1]).all():
+        raise ValueError("Legacy binary-only targets must contain only 0 or 1.")
+    result.loc[fallback] = fallback_labels.astype("int32")
     return result
 
 

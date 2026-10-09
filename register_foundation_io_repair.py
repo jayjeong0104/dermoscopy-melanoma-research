@@ -72,11 +72,16 @@ def register(experiment: Path) -> None:
                                "after_sha256": file_hash(ROOT / name)} for name, original in ORIGINAL.items()},
             "additional_code_sha256": {"artifact_io.py": file_hash(ROOT / "artifact_io.py")},
             "registration_script_sha256": file_hash(Path(__file__)),
-            "protocol_changed": False, "cached_features_modified": False,
+            "protocol_changed": None,
+            "protocol_review_status": "unverified_by_registration",
+            "protocol_review_limitation": "Hashes preserve the registered bytes; registration "
+            "does not prove that arbitrary edits in the allowed files are semantically I/O-only.",
+            "cached_features_modified": False,
             "resume_policy": "Reuse completed extraction and completed head choices; restart only incomplete small head fit.",
         })
         verify_plan(experiment)
-        print("I/O-only repair registered. Original plan, inputs and completed outputs verified unchanged.")
+        print("Repair bytes registered. Original plan, inputs and completed outputs verified unchanged; "
+              "semantic I/O-only scope and protocol equivalence remain unverified.")
 
 
 if __name__ == "__main__":

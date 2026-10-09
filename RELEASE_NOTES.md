@@ -1,7 +1,29 @@
-# v0.1.0-research
+# Code Update — October 9, 2026
+
+This update synchronizes reviewed source and tests. It does not create a new
+model release or replace the existing v0.1 checkpoint, hash, or inference recipe.
+
+- Corrects the v0.1 provenance record: an ancestor trained on 3,053 images later
+  assigned to validation and 3,138 later assigned to test. Historical metrics
+  from this lineage are not independent holdout performance estimates.
+- Includes local checkpoint-ancestry checks, evaluation binding and aggregation
+  repairs, and training/evaluation methodology fixes documented in the pipeline
+  reviews.
+- Records the newer development reference separately from the downloadable
+  artifact. In a matched comparison on reused validation, it detected 276 of
+  290 melanomas with 1,056 false alarms, versus 274 and 1,284 for the clean
+  reference. Its 95.17% overall sensitivity does not establish a source-specific
+  floor: DERM12345 sensitivity was 92.06%.
+
+See [the aggregate development report](reports/development_progress_20261007.json)
+and [the October 7 review](PIPELINE_REVIEW_20261007.md). No new test/HIBA inference
+or clinical-performance confirmation was performed for this update.
+
+# v0.1.0-research — Historical Release
 
 Initial research snapshot of the retained melanoma-versus-non-melanoma model.
 This is a versioned publication, not a newly trained or clinically approved model.
+The October provenance correction above applies to its performance claims.
 
 ## Included
 

@@ -1,5 +1,6 @@
 {
   "snapshot_date": "2026-10-02",
+  "record_scope": "Historical October 2 snapshot; the October 9 review_update below supersedes its model-retention and independent-holdout interpretation, not its archived observations.",
   "retained_model": "melanoma-effnetv2b1-v0.1.0-research",
   "promotion_decision": "retain_baseline",
   "historical_test_report": "historical_internal_test_metrics.json",
@@ -118,5 +119,40 @@
     "maximum_gradient": 1.88167E-08,
     "validated_replacement": false
   },
-  "publication_validation": "Unit tests and a local inference smoke check verify software packaging only, not clinical performance."
+  "publication_validation": "Unit tests and a local inference smoke check verify software packaging only, not clinical performance.",
+  "review_update": {
+    "recorded_on": "2026-10-09",
+    "evidence_date": "2026-10-07",
+    "released_artifact": "melanoma-effnetv2b1-v0.1.0-research",
+    "release_asset_changed": false,
+    "known_ancestor_training_exposure": {
+      "later_validation_images": 3053,
+      "later_test_images": 3138,
+      "historical_results_are_independent_holdout_estimates": false
+    },
+    "historical_diagnosis_followup": "Convergence checking was repaired; the historical study was not resumed because its features inherit the exposed local lineage.",
+    "current_development_reference": "natural_lesion_20261006",
+    "current_reference_published_as_v0_1_asset": false,
+    "aggregate_report": "development_progress_20261007.json",
+    "protocol": "Matched canonical lesion scores on 4177 reused validation lesions, with group-separated threshold calibration and scoring; 290 melanoma lesions. The current runs avoid the known contaminated local warm-start lineage.",
+    "clean_reference": {
+      "true_positives": 274,
+      "false_negatives": 16,
+      "false_positives": 1284,
+      "true_negatives": 2603
+    },
+    "current_development_reference_counts": {
+      "true_positives": 276,
+      "false_negatives": 14,
+      "false_positives": 1056,
+      "true_negatives": 2831
+    },
+    "feature_head_followup": "None improved on the current development reference while meeting the overall 95 percent sensitivity target.",
+    "limitations": [
+      "Validation informed checkpoint selection and repeated experiments; group-separated calibration does not make it an independent confirmation cohort.",
+      "DERM12345 sensitivity fell from 96.83 percent to 92.06 percent; an overall 95 percent result does not establish a source-specific floor.",
+      "The comparison does not isolate the causal effect of sampling changes.",
+      "No new test/HIBA inference or clinical deployment validation was performed for this code update."
+    ]
+  }
 }

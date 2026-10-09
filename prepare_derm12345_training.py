@@ -11,6 +11,13 @@ import pandas as pd
 from prepare_combined_dataset import HIGH_RISK_DIAGNOSES, IMAGE_SUFFIXES, inspect_image
 
 
+UNKNOWN_DIAGNOSIS = "UNKNOWN"
+# These source diagnoses have no valid class in the project's eight-class head.
+# Keep their melanoma supervision, but do not teach that they are benign DF/VASC
+# or that a cutaneous horn/Paget disease is necessarily SCC.
+UNREPRESENTABLE_LABELS = {"ks", "dfsp", "ch", "mpd"}
+
+
 def default_image_dir() -> Path:
     if os.name == "nt":
         return Path(r"D:\SkinCancerData\DERM12345\train")
@@ -65,6 +72,8 @@ def map_diagnosis(row: pd.Series) -> str:
     main_class = str(row["main_class_1"]).lower()
     malignancy = str(row["malignancy"]).lower()
     label = str(row["label"]).lower()
+    if label in UNREPRESENTABLE_LABELS:
+        return UNKNOWN_DIAGNOSIS
     if main_class == "melanoma":
         return "MEL"
     if super_class == "melanocytic":
@@ -82,6 +91,90 @@ def map_diagnosis(row: pd.Series) -> str:
     if main_class == "vascular":
         return "VASC"
     raise ValueError(f"Unsupported DERM12345 taxonomy row: {row.to_dict()}")
+
+
+def correct_derm_taxonomy(frame: pd.DataFrame) -> pd.DataFrame:
+    """Apply source taxonomy without replacing raw diagnoses or image identities.
+
+    Accepts either original DERM metadata or its historical manifest columns.
+    ``target`` remains the high-risk label here; callers building melanoma
+    training data should use ``repair_existing_manifest``.
+    """
+    output = frame.copy()
+    label_column = "derm_label" if "derm_label" in output else "label"
+    malignancy_column = (
+        "original_malignancy" if "original_malignancy" in output else "malignancy"
+    )
+    required = {label_column, malignancy_column, "super_class", "main_class_1"}
+    missing = required - set(output.columns)
+    if missing:
+        raise ValueError(f"DERM taxonomy is missing columns: {sorted(missing)}")
+    taxonomy = output.rename(
+        columns={label_column: "label", malignancy_column: "malignancy"}
+    )
+    if taxonomy[list({"label", "malignancy", "super_class", "main_class_1"})].isna().any().any():
+        raise ValueError("DERM taxonomy has missing labels or malignancy.")
+    malignancy = taxonomy["malignancy"].astype(str).str.lower()
+    if not malignancy.isin({"benign", "malignant", "indeterminate"}).all():
+        raise ValueError("DERM taxonomy has an unsupported malignancy value.")
+    output["diagnosis"] = taxonomy.apply(map_diagnosis, axis=1)
+    output["diagnosis_label_available"] = output["diagnosis"].ne(UNKNOWN_DIAGNOSIS).astype("int32")
+    output["melanoma_label"] = taxonomy["main_class_1"].astype(str).str.lower().eq("melanoma").astype("int32")
+    if (output["melanoma_label"].eq(1) & malignancy.ne("malignant")).any():
+        raise ValueError("A DERM melanoma diagnosis is not marked malignant.")
+    output["high_risk_label"] = malignancy.isin({"malignant", "indeterminate"}).astype("int32")
+    output["risk_group"] = malignancy.map({
+        "benign": "benign", "malignant": "malignant", "indeterminate": "premalignant"
+    })
+    output["target"] = output["high_risk_label"]
+    output["target_name"] = output["target"].map({0: "benign", 1: "high_risk"})
+    return output
+
+
+def repair_existing_manifest(
+    frame: pd.DataFrame, binary_target: str = "melanoma"
+) -> pd.DataFrame:
+    """Derive corrected labels without rehashing images or changing split IDs.
+
+    Existing SIIM UNKNOWN labels remain binary-only; raw provenance fields are
+    preserved. Historical manifests must be written to a new output path.
+    """
+    if binary_target != "melanoma":
+        raise ValueError("This derived-manifest repair supports only melanoma-vs-rest.")
+    output = frame.copy()
+    if "diagnosis_label_available" not in output:
+        output["diagnosis_label_available"] = 1
+    supervision = pd.to_numeric(output["diagnosis_label_available"], errors="raise")
+    if not supervision.isin([0, 1]).all():
+        raise ValueError("Diagnosis supervision flags must contain only 0 or 1.")
+    supervised = supervision.eq(1)
+    derm_mask = output["source"].eq("DERM12345")
+    explicit = output.get("melanoma_label", pd.Series(pd.NA, index=output.index)).copy()
+    output["melanoma_label"] = output["diagnosis"].eq("MEL").astype("int32")
+    # DERM is repaired from its raw taxonomy below. Its generic high-risk target
+    # may correctly be positive for UNKNOWN non-melanoma cancers such as KS.
+    unknown_other = ~supervised & ~derm_mask
+    use_explicit = unknown_other & explicit.notna()
+    if use_explicit.any():
+        labels = pd.to_numeric(explicit.loc[use_explicit], errors="raise")
+        if not labels.isin([0, 1]).all():
+            raise ValueError("Explicit melanoma labels must contain only 0 or 1.")
+        output.loc[use_explicit, "melanoma_label"] = labels.astype("int32")
+    fallback = unknown_other & explicit.isna()
+    if fallback.any():
+        # Without an explicit melanoma label, legacy SIIM rows are known negatives.
+        if not output.loc[fallback, "target"].eq(0).all():
+            raise ValueError("Cannot infer melanoma labels for binary-only positive rows.")
+        output.loc[fallback, "melanoma_label"] = 0
+    output["high_risk_label"] = pd.Series(pd.NA, index=output.index, dtype="Int64")
+    output.loc[supervised, "high_risk_label"] = output.loc[supervised, "diagnosis"].isin(HIGH_RISK_DIAGNOSES).astype(int)
+    if derm_mask.any():
+        corrected = correct_derm_taxonomy(output.loc[derm_mask])
+        for column in ("diagnosis", "diagnosis_label_available", "melanoma_label", "high_risk_label", "risk_group"):
+            output.loc[derm_mask, column] = corrected[column]
+    output["target"] = output["melanoma_label"].astype("int32")
+    output["target_name"] = output["target"].map({0: "not_melanoma", 1: "melanoma"})
+    return output
 
 
 def load_derm(args: argparse.Namespace) -> pd.DataFrame:
@@ -136,14 +229,7 @@ def load_derm(args: argparse.Namespace) -> pd.DataFrame:
     frame["source_lesion_id"] = frame["image_id"].astype(str)
     frame["lesion_id"] = "DERM12345::" + frame["source_lesion_id"]
     frame["split_group_id"] = "DERM12345::" + frame["patient_id"].astype(str)
-    frame["diagnosis"] = frame.apply(map_diagnosis, axis=1)
-    frame["target"] = frame["diagnosis"].isin(HIGH_RISK_DIAGNOSES).astype("int32")
-    frame["target_name"] = frame["target"].map({0: "benign", 1: "high_risk"})
-    frame["risk_group"] = "benign"
-    frame.loc[frame["diagnosis"].eq("AK"), "risk_group"] = "premalignant"
-    frame.loc[frame["diagnosis"].isin({"BCC", "MEL", "SCC"}), "risk_group"] = (
-        "malignant"
-    )
+    frame = correct_derm_taxonomy(frame)
     frame["age_approx"] = pd.NA
     frame["sex"] = "unknown"
     frame["anatom_site_general"] = "unknown"
@@ -177,6 +263,8 @@ def main() -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     base = pd.read_csv(args.base_manifest)
+    if "diagnosis_label_available" not in base:
+        base["diagnosis_label_available"] = 1
     if "split_group_id" not in base:
         base["split_group_id"] = base["lesion_id"]
     if "patient_id" not in base:

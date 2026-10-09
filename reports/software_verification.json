@@ -22,5 +22,32 @@
     "CPU mixed-float16 arithmetic is not guaranteed to be bit-for-bit identical to the original GPU environment.",
     "Validation images and output records used for the smoke check remain local.",
     "Tests confirm software behavior, not clinical readiness."
-  ]
+  ],
+  "source_update_verification": {
+    "verified_on": "2026-10-09",
+    "python": "3.12.3",
+    "device": "native Windows CPU",
+    "runtime_versions": {
+      "tensorflow": "2.21.0",
+      "keras": "3.15.1",
+      "numpy": "2.4.3",
+      "pandas": "3.0.1",
+      "scipy": "1.17.1",
+      "scikit-learn": "1.8.0",
+      "h5py": "3.14.0",
+      "threadpoolctl": "3.6.0"
+    },
+    "unit_tests": {
+      "discovery_command": "python -m unittest discover -p 'test_*.py'",
+      "passed": 263,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "workspace_temporary_directory_used": true,
+      "local_log_sha256": "961f87944ab48429f47ec703824e3069c27a6c56eab64d0d01a9950399c4f328"
+    },
+    "new_dataset_inference": false,
+    "new_model_asset_release": false,
+    "scope": "Source and packaging regression tests, including research inference helper compatibility; no new clinical-performance confirmation."
+  }
 }

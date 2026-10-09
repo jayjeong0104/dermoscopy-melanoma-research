@@ -156,6 +156,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--fine-tune-learning-rate", type=float, default=1e-5)
     parser.add_argument("--weight-decay", type=float, default=1e-5)
     parser.add_argument("--dropout-rate", type=float, default=0.35)
+    parser.add_argument("--head-normalization", choices=("batchnorm", "layernorm"),
+                        default="batchnorm", help="Classifier normalization; layernorm avoids small-batch statistics.")
+    parser.add_argument("--training-metadata-policy", choices=("unknown", "provided"), default=None,
+                        help="New runs default to unknown, matching inference. Legacy resumes retain provided metadata.")
     parser.add_argument(
         "--metadata-modality-dropout",
         type=float,
@@ -198,10 +202,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--val-size", type=float, default=0.15)
     parser.add_argument("--sampling-unit", choices=("image", "lesion"), default="image",
                         help="Exposure unit within each source/diagnosis stratum; preserves source/class mass.")
+    parser.add_argument("--sampling-mass-unit", choices=("image", "lesion"), default="image",
+                        help="Count images or distinct lesions when allocating source/diagnosis sampling mass.")
     parser.add_argument("--hard-negative-weights", type=Path,
                         help="Exact training-only identity table with capped sampling weights.")
     parser.add_argument("--checkpoint-metric", choices=("image_pr_auc", "lesion_pr_auc", "lesion_operating"),
                         default="image_pr_auc", help="Legacy default preserves old resume behavior.")
+    parser.add_argument("--skip-keras-validation", action="store_true",
+                        help="With lesion selection and finalization-mode none, keep the full lesion "
+                        "validation pass and omit duplicate Keras validation loss/image metrics.")
     parser.add_argument("--freeze-batch-norm", action="store_true",
                         help="Freeze all BatchNorm layers, including classifier heads, for small-batch warm starts.")
     parser.add_argument("--archive-epoch-checkpoints", action="store_true",
@@ -287,6 +296,7 @@ def validate_args(args: argparse.Namespace) -> None:
         raise ValueError("--freeze-batch-norm requires a trained --warm-start-model.")
     if args.checkpoint_metric == "lesion_operating" and args.finalization_mode != "none":
         raise ValueError("lesion_operating requires validation-only finalization-mode none; use the operating-policy evaluator.")
+    validation_data_for_fit(args, None)
     if args.sampling_unit == "lesion" and args.hard_negative_weights is not None:
         raise ValueError("Lesion sampling cannot be combined with hard-negative weights in this protocol.")
     if args.learning_rate <= 0 or args.fine_tune_learning_rate <= 0:
@@ -336,6 +346,15 @@ def validate_args(args: argparse.Namespace) -> None:
             raise FileNotFoundError(f"Resume run directory not found: {args.resume_run_dir}")
         if args.resume_run_dir.resolve().parent != args.output_root.resolve():
             raise ValueError("--resume-run-dir must be a direct child of --output-root.")
+
+
+def validation_data_for_fit(args: argparse.Namespace, dataset):
+    """The lesion callback still predicts every validation image when opting out."""
+    if not getattr(args, "skip_keras_validation", False):
+        return dataset
+    if args.checkpoint_metric not in {"lesion_pr_auc", "lesion_operating"} or args.finalization_mode != "none":
+        raise ValueError("--skip-keras-validation requires lesion checkpoint selection and --finalization-mode none.")
+    return None
 
 
 def configure_runtime(mode: str) -> dict[str, object]:
@@ -472,6 +491,11 @@ def configure_binary_target(frame: pd.DataFrame, target_name: str) -> pd.DataFra
         configured.loc[supervised, "target"] = (
             configured.loc[supervised, "diagnosis"].eq("MEL").astype("int32")
         )
+        if "melanoma_label" in configured:
+            explicit = pd.to_numeric(configured.loc[~supervised, "melanoma_label"], errors="raise")
+            if not explicit.isin([0, 1]).all():
+                raise ValueError("Unsupervised melanoma_label must be explicitly 0 or 1.")
+            configured.loc[~supervised, "target"] = explicit.astype("int32")
         if not configured.loc[~supervised, "target"].eq(0).all():
             raise ValueError("Unsupervised diagnosis rows must be confirmed non-melanoma.")
         configured["target_name"] = np.where(
@@ -657,12 +681,16 @@ def build_dataset(
     prefetch_batches: int = 1,
     mask_metadata: bool = False,
     sampling_unit: str = "image",
+    sampling_mass_unit: str = "image",
 ) -> tf.data.Dataset:
     if sampling_unit not in {"image", "lesion"}:
         raise ValueError("Unsupported sampling unit.")
+    if sampling_mass_unit not in {"image", "lesion"}:
+        raise ValueError("Unsupported sampling mass unit.")
     if training and sampling_unit == "lesion" and "sampling_weight" in frame:
         raise ValueError("Lesion sampling cannot silently ignore hard-negative weights.")
     if training:
+        from lesion_sampling import stratum_mass
         datasets: list[tf.data.Dataset] = []
         weights: list[float] = []
         group_targets: list[int] = []
@@ -678,7 +706,7 @@ def build_dataset(
                     return tuple(tf.gather(value, row) for value in tensors)
 
                 datasets.append(row_dataset(group, seed + index).map(gather_row))
-                weights.append(float(len(group) ** sampling_alpha))
+                weights.append(stratum_mass(group, sampling_alpha, sampling_mass_unit))
                 group_targets.append(int(group.target.iloc[0]))
                 continue
             if "sampling_weight" in group:
@@ -702,7 +730,7 @@ def build_dataset(
                 seed=seed + index, stop_on_empty_dataset=False,
             )
             datasets.append(dataset)
-            weights.append(float(len(group) ** sampling_alpha))
+            weights.append(stratum_mass(group, sampling_alpha, sampling_mass_unit))
             group_targets.append(int(group["target"].iloc[0]))
         if positive_sampling_fraction is None:
             total = sum(weights)
@@ -787,7 +815,16 @@ def build_model(
     risk_features: str,
     backbone_name: str,
     weights: str | None,
+    head_normalization: str = "batchnorm",
 ) -> tf.keras.Model:
+    if head_normalization not in {"batchnorm", "layernorm"}:
+        raise ValueError("Unsupported classifier normalization.")
+
+    def normalize_head(features, name):
+        if head_normalization == "layernorm":
+            return tf.keras.layers.LayerNormalization(name=f"{name}_layer_norm")(features)
+        return tf.keras.layers.BatchNormalization(name=f"{name}_batch_norm")(features)
+
     augmentation = tf.keras.Sequential(
         [
             tf.keras.layers.RandomFlip(
@@ -840,15 +877,13 @@ def build_model(
     image_features = tf.keras.layers.Rescaling(255.0, name="backbone_input_scale")(image_features)
     image_features = backbone(image_features, training=False)
     image_features = tf.keras.layers.GlobalAveragePooling2D(name="image_pool")(image_features)
-    image_features = tf.keras.layers.BatchNormalization(name="image_batch_norm")(image_features)
+    image_features = normalize_head(image_features, "image")
     image_features = tf.keras.layers.Dropout(dropout_rate, name="image_dropout")(image_features)
     image_features = tf.keras.layers.Dense(384, activation="swish", name="image_projection")(
         image_features
     )
 
-    metadata_features = tf.keras.layers.BatchNormalization(name="metadata_batch_norm")(
-        metadata_input
-    )
+    metadata_features = normalize_head(metadata_input, "metadata")
     metadata_features = tf.keras.layers.Dense(64, activation="swish", name="metadata_dense")(
         metadata_features
     )
@@ -1085,7 +1120,10 @@ def stage_resume_epoch(run_dir: Path, stage: str) -> int:
         backup_epoch = int(metadata["epoch"])
         if backup_epoch < 0:
             raise ValueError(f"Invalid backup epoch for stage {stage}: {backup_epoch}")
-    return max(history_epoch, backup_epoch)
+        # The log can be ahead when interruption occurs before the final backup
+        # callback. Only backed-up optimizer/weight updates may be skipped.
+        return backup_epoch
+    return history_epoch
 
 
 def training_callbacks(
@@ -1097,43 +1135,59 @@ def training_callbacks(
     lesion_validation: "LesionValidation | None" = None,
     archive_epochs: bool = False,
 ) -> list[tf.keras.callbacks.Callback]:
+    from training_callback_state import CheckpointEarlyStopping, TrainingStateBackup
+
+    if append_history:
+        metadata_path = run_dir / f"backup_{stage}" / "training_metadata.json"
+        history_path = run_dir / f"training_{stage}.csv"
+        if metadata_path.exists() and history_path.exists():
+            backup_epoch = int(json.loads(metadata_path.read_text(encoding="utf-8"))["epoch"])
+            history = stage_history(run_dir, stage)
+            if not history.empty:
+                ahead = pd.to_numeric(history["epoch"], errors="raise") >= backup_epoch
+                if ahead.any():
+                    audit_path = run_dir / f"training_{stage}_unbacked_epochs.csv"
+                    history.loc[ahead].to_csv(audit_path, mode="a", index=False,
+                                             header=not audit_path.exists())
+                    history.loc[~ahead].to_csv(history_path, index=False)
+
     monitor = lesion_validation.monitor if lesion_validation is not None else "val_high_risk_pr_auc"
     prefix = [lesion_validation] if lesion_validation is not None else []
     if archive_epochs:
         prefix.append(tf.keras.callbacks.ModelCheckpoint(
             filepath=str(run_dir / ("epoch_" + stage + "_{epoch:02d}.keras")), save_best_only=False, verbose=0))
-    return prefix + [
-        tf.keras.callbacks.TerminateOnNaN(),
-        tf.keras.callbacks.BackupAndRestore(
-            backup_dir=str(run_dir / f"backup_{stage}"), delete_checkpoint=True
-        ),
-        tf.keras.callbacks.ModelCheckpoint(
+    checkpoint = tf.keras.callbacks.ModelCheckpoint(
             filepath=str(run_dir / f"best_{stage}_model.keras"),
             monitor=monitor,
             mode="max",
             save_best_only=True,
             verbose=1,
             initial_value_threshold=initial_best,
-        ),
-        tf.keras.callbacks.ReduceLROnPlateau(
+        )
+    plateau = tf.keras.callbacks.ReduceLROnPlateau(
             monitor=monitor,
             mode="max",
             factor=0.4,
             patience=max(1, patience // 2),
             min_lr=1e-7,
             verbose=1,
-        ),
-        tf.keras.callbacks.EarlyStopping(
+        )
+    stopping = CheckpointEarlyStopping(
+            checkpoint=run_dir / f"best_{stage}_model.keras",
             monitor=monitor,
             mode="max",
             patience=patience,
-            restore_best_weights=True,
             verbose=1,
-        ),
+        )
+    return prefix + [
+        tf.keras.callbacks.TerminateOnNaN(), checkpoint, plateau, stopping,
         tf.keras.callbacks.CSVLogger(
             str(run_dir / f"training_{stage}.csv"), append=append_history
         ),
         HostMemoryCleanup(),
+        TrainingStateBackup(run_dir / f"backup_{stage}", {
+            "checkpoint": checkpoint, "plateau": plateau, "stopping": stopping,
+        }),
     ]
 
 
@@ -1164,6 +1218,8 @@ RESUME_CONFIG_KEYS = (
     "fine_tune_learning_rate",
     "weight_decay",
     "dropout_rate",
+    "head_normalization",
+    "training_metadata_policy",
     "metadata_modality_dropout",
     "risk_features",
     "risk_loss",
@@ -1174,6 +1230,7 @@ RESUME_CONFIG_KEYS = (
     "sampling_alpha",
     "positive_sampling_fraction",
     "sampling_unit",
+    "sampling_mass_unit",
     "val_size",
     "test_size",
     "fold_assignments",
@@ -1191,6 +1248,7 @@ RESUME_CONFIG_KEYS = (
     "hard_negative_weights",
     "hard_negative_weights_sha256",
     "checkpoint_metric",
+    "skip_keras_validation",
     "tta_scheme",
     "minimum_operating_recall",
     "freeze_batch_norm",
@@ -1211,10 +1269,16 @@ def validate_resume_state(
 
     saved_config = json.loads((run_dir / "run_config.json").read_text(encoding="utf-8"))
     saved_config.setdefault("checkpoint_metric", "image_pr_auc")
+    saved_config.setdefault("skip_keras_validation", False)
+    config = dict(config)
+    config.setdefault("skip_keras_validation", False)
     saved_config.setdefault("tta_scheme", "legacy_v1")
     saved_config.setdefault("freeze_batch_norm", False)
     saved_config.setdefault("archive_epoch_checkpoints", False)
     saved_config.setdefault("sampling_unit", "image")
+    saved_config.setdefault("sampling_mass_unit", "image")
+    saved_config.setdefault("head_normalization", "batchnorm")
+    saved_config.setdefault("training_metadata_policy", "provided")
     mismatches = {
         key: {"saved": saved_config.get(key), "current": config.get(key)}
         for key in RESUME_CONFIG_KEYS
@@ -1315,11 +1379,44 @@ def select_thresholds(
     truth: np.ndarray,
     probabilities: np.ndarray,
     minimum_recall: float,
+    method: str = "empirical",
 ) -> tuple[dict[str, object], dict[str, object], list[dict[str, object]]]:
-    rows = [
-        threshold_metrics(truth, probabilities, float(threshold))
-        for threshold in np.round(np.arange(0.001, 1.0, 0.001), 3)
-    ]
+    truth, probabilities = np.asarray(truth), np.asarray(probabilities, dtype="float64")
+    if (truth.ndim != 1 or truth.shape != probabilities.shape
+            or set(np.unique(truth)) != {0, 1}
+            or not np.isfinite(probabilities).all()
+            or ((probabilities < 0) | (probabilities > 1)).any()
+            or not 0 < minimum_recall <= 1):
+        raise ValueError("Threshold selection needs aligned finite probabilities, both binary classes, and recall in (0, 1].")
+    if method == "legacy_grid":
+        # Explicit historical reproduction only; the grid can miss feasible policies.
+        rows = [threshold_metrics(truth, probabilities, float(threshold))
+                for threshold in np.round(np.arange(0.001, 1.0, 0.001), 3)]
+    elif method == "empirical":
+        # One sort evaluates every distinct decision set, including all-positive.
+        # All-negative cannot win the balanced/F1 tie-break or satisfy recall > 0.
+        order = np.argsort(probabilities, kind="stable")
+        thresholds, starts = np.unique(probabilities[order], return_index=True)
+        positive_prefix = np.r_[0, np.cumsum(truth[order].astype("int64"))]
+        positives, total = int(positive_prefix[-1]), len(truth)
+        negatives = total - positives
+        rows = []
+        for threshold, start in zip(thresholds, starts):
+            fn = int(positive_prefix[start])
+            tn = int(start) - fn
+            tp, fp = positives - fn, negatives - tn
+            recall, specificity = tp / positives, tn / negatives
+            denominator = math.sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
+            rows.append({"threshold": float(threshold), "accuracy": (tp + tn) / total,
+                "balanced_accuracy": (recall + specificity) / 2,
+                "precision": tp / (tp + fp) if tp + fp else 0.0,
+                "recall": recall, "specificity": specificity,
+                "f1": 2 * tp / (2 * tp + fp + fn),
+                "matthews_correlation_coefficient": (tp * tn - fp * fn) / denominator if denominator else 0.0,
+                "true_negatives": tn, "false_positives": fp, "false_negatives": fn,
+                "true_positives": tp, "support": total, "confusion_matrix": [[tn, fp], [fn, tp]]})
+    else:
+        raise ValueError("Unknown threshold selection method.")
     balanced = max(rows, key=lambda row: (row["balanced_accuracy"], row["f1"], row["recall"]))
     eligible = [row for row in rows if row["recall"] >= minimum_recall]
     if eligible:
@@ -1445,10 +1542,15 @@ def aggregate_predictions_by_lesion(
         "diagnosis_index",
     ]
     working = frame[identity_columns].reset_index(drop=True).copy()
+    supervision = diagnosis_supervision_mask(frame)
+    working["diagnosis_label_available"] = supervision.astype("int32")
+    identity_columns.append("diagnosis_label_available")
     clipped = np.clip(risk_probabilities.astype("float64"), 1e-6, 1.0 - 1e-6)
     working["risk_logit"] = np.log(clipped / (1.0 - clipped))
     grouped = working.groupby("lesion_id", sort=False)
-    if (grouped["target"].nunique() > 1).any() or (grouped["diagnosis"].nunique() > 1).any():
+    if ((grouped["target"].nunique() > 1).any()
+            or (grouped["diagnosis"].nunique() > 1).any()
+            or (grouped["diagnosis_label_available"].nunique() > 1).any()):
         raise ValueError("A lesion has conflicting labels during prediction aggregation.")
 
     lesions = grouped[identity_columns[1:]].first().reset_index()
@@ -1568,9 +1670,51 @@ class LesionValidation(tf.keras.callbacks.Callback):
                   f"specificity={crossfit_metrics['specificity']:.6f}, AP={crossfit_metrics['pr_auc']:.6f}", flush=True)
 
 
-def diagnosis_metrics(truth: np.ndarray, probabilities: np.ndarray) -> dict[str, object]:
+def diagnosis_supervision_mask(frame: pd.DataFrame) -> np.ndarray:
+    """Preserve legacy known labels while excluding dummy indices for UNKNOWN rows."""
+    if "diagnosis_label_available" in frame:
+        available = pd.to_numeric(frame["diagnosis_label_available"], errors="raise")
+        if available.isna().any() or not available.isin([0, 1]).all():
+            raise ValueError("Diagnosis supervision must be a binary, nonmissing mask.")
+        mask = available.to_numpy(dtype="bool")
+    else:
+        mask = np.ones(len(frame), dtype="bool")
+    if "diagnosis" in frame:
+        mask &= frame["diagnosis"].isin(DIAGNOSES).to_numpy()
+    return mask
+
+
+def diagnosis_metrics(
+    truth: np.ndarray, probabilities: np.ndarray,
+    diagnosis_label_available: np.ndarray | None = None,
+) -> dict[str, object]:
+    truth = np.asarray(truth)
+    probabilities = np.asarray(probabilities)
+    if truth.ndim != 1 or probabilities.shape != (len(truth), len(DIAGNOSES)):
+        raise ValueError("Diagnosis metric inputs have inconsistent shapes.")
+    mask = np.ones(len(truth), dtype="bool")
+    if diagnosis_label_available is not None:
+        available = np.asarray(diagnosis_label_available)
+        if available.shape != truth.shape or not np.isin(available, [0, 1]).all():
+            raise ValueError("Diagnosis supervision must be a binary mask matching truth.")
+        mask = available.astype("bool")
+    support = int(mask.sum())
+    excluded = int(len(truth) - support)
+    truth, probabilities = truth[mask], probabilities[mask]
+    if not np.isin(truth, np.arange(len(DIAGNOSES))).all() or not np.isfinite(probabilities).all():
+        raise ValueError("Supervised diagnosis labels or probabilities are invalid.")
+    if support == 0:
+        return {
+            "status": "no_supervised_diagnosis_labels", "support": 0,
+            "excluded_unlabeled": excluded, "accuracy": None, "balanced_accuracy": None,
+            "macro_precision": None, "macro_recall": None, "macro_f1": None,
+            "confusion_matrix": np.zeros((len(DIAGNOSES), len(DIAGNOSES)), dtype=int).tolist(),
+            "classification_report": {},
+        }
     predictions = probabilities.argmax(axis=1)
     return {
+        "support": support,
+        "excluded_unlabeled": excluded,
         "accuracy": float(accuracy_score(truth, predictions)),
         "balanced_accuracy": float(balanced_accuracy_score(truth, predictions)),
         "macro_precision": float(
@@ -1671,6 +1815,13 @@ def evaluate_candidate(
 def main() -> None:
     args = parse_args()
     validate_args(args)
+    from training_provenance import (audit_warm_start, require_clean_warm_start,
+        resolve_training_metadata_policy, assert_same_resume_identities)
+    saved_config = None
+    if args.resume_run_dir is not None:
+        saved_config = json.loads((args.resume_run_dir / "run_config.json").read_text(encoding="utf-8"))
+    args.training_metadata_policy = resolve_training_metadata_policy(
+        args.training_metadata_policy, saved_config)
     runtime = configure_runtime(args.mixed_precision)
     if args.require_gpu and not runtime["gpu_devices"]:
         raise RuntimeError("GPU training was required, but TensorFlow found no GPU.")
@@ -1709,6 +1860,10 @@ def main() -> None:
     config["malignant_diagnoses"] = sorted(MALIGNANT_DIAGNOSES)
     config["primary_evaluation_unit"] = "lesion"
     config["binary_inference_metadata"] = "unknown"
+    config["threshold_selection"] = (
+        saved_config.get("threshold_selection", "legacy_grid")
+        if saved_config is not None else "empirical"
+    )
 
     summary = {
         "full_dataset": split_summary(frame),
@@ -1718,8 +1873,15 @@ def main() -> None:
     }
     if args.resume_run_dir is not None:
         validate_resume_state(run_dir, config, encoder, summary)
+        for name, split in (("train", splits.train), ("val", splits.val), ("test", splits.test)):
+            assert_same_resume_identities(pd.read_csv(run_dir / f"{name}_split.csv", dtype="string"), split, name)
         print(f"Resuming interrupted run: {run_dir}")
     else:
+        if args.warm_start_model is not None:
+            provenance = audit_warm_start(args.warm_start_model,
+                {"validation": splits.val, "test": splits.test}, PROJECT_ROOT)
+            save_json(run_dir / "warm_start_provenance.json", provenance)
+            require_clean_warm_start(provenance)
         save_json(run_dir / "run_config.json", config)
         save_json(run_dir / "metadata_schema.json", asdict(encoder))
         save_json(run_dir / "split_summary.json", summary)
@@ -1742,7 +1904,8 @@ def main() -> None:
         from lesion_sampling import exposure_audit
         if args.positive_sampling_fraction is not None:
             save_json(run_dir / "sampling_exposure.json", exposure_audit(
-                training_frame, args.sampling_alpha, args.positive_sampling_fraction))
+                training_frame, args.sampling_alpha, args.positive_sampling_fraction,
+                mass_unit=args.sampling_mass_unit))
         print("Lesion-uniform exposure within source/diagnosis; all original images retained.", flush=True)
     if args.hard_negative_weights is not None:
         from targeted_sampling import assert_training_only, attach_weights
@@ -1761,7 +1924,9 @@ def main() -> None:
         args.sampling_alpha,
         args.positive_sampling_fraction,
         args.prefetch_batches,
+        mask_metadata=args.training_metadata_policy == "unknown",
         sampling_unit=args.sampling_unit,
+        sampling_mass_unit=args.sampling_mass_unit,
     )
     val_ds = build_dataset(
         splits.val,
@@ -1805,6 +1970,7 @@ def main() -> None:
         args.risk_features,
         args.backbone,
         pretrained_weights,
+        head_normalization=args.head_normalization,
     )
     if args.warm_start_model is not None:
         warm_start = warm_start_compatible_layers(
@@ -1862,7 +2028,7 @@ def main() -> None:
             print(f"Resuming head training at epoch {head_completed + 1}/{args.head_epochs}.")
         model.fit(
             train_ds,
-            validation_data=val_ds,
+            validation_data=validation_data_for_fit(args, val_ds),
             steps_per_epoch=steps_per_epoch,
             initial_epoch=head_completed,
             epochs=args.head_epochs,
@@ -1938,7 +2104,7 @@ def main() -> None:
                 )
             model.fit(
                 train_ds,
-                validation_data=val_ds,
+                validation_data=validation_data_for_fit(args, val_ds),
                 steps_per_epoch=steps_per_epoch,
                 initial_epoch=fine_completed,
                 epochs=args.fine_tune_epochs,
@@ -2085,7 +2251,8 @@ def main() -> None:
     val_image_risk = apply_temperature(val_image_risk_raw, temperature)
     test_image_risk = apply_temperature(test_image_risk_raw, temperature)
     balanced_threshold, operating_threshold, threshold_rows = select_thresholds(
-        val_truth, val_risk, args.minimum_operating_recall
+        val_truth, val_risk, args.minimum_operating_recall,
+        method=config["threshold_selection"],
     )
     pd.DataFrame(threshold_rows).drop(columns=["confusion_matrix"]).to_csv(
         run_dir / "threshold_sweep.csv", index=False
@@ -2150,6 +2317,7 @@ def main() -> None:
     diagnosis_results = diagnosis_metrics(
         test_lesions["diagnosis_index"].to_numpy(dtype="int32"),
         test_lesion_diagnosis_probabilities,
+        diagnosis_supervision_mask(test_lesions),
     )
     image_truth = splits.test["target"].to_numpy(dtype="int32")
     image_selected_predictions = (test_image_risk >= operating_value).astype("int32")
@@ -2191,6 +2359,7 @@ def main() -> None:
     image_diagnosis_results = diagnosis_metrics(
         splits.test["diagnosis_index"].to_numpy(dtype="int32"),
         test_image_diagnosis_probabilities,
+        diagnosis_supervision_mask(splits.test),
     )
     save_json(run_dir / "test_risk_metrics.json", risk_results)
     save_json(run_dir / "test_diagnosis_metrics.json", diagnosis_results)

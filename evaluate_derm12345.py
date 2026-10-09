@@ -17,6 +17,7 @@ import pandas as pd
 import tensorflow as tf
 
 import train_multitask as training
+from external_evaluation_contract import recorded_exposure_manifests, verify_inference_binding
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -42,7 +43,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--training-manifest",
         type=Path,
-        default=PROJECT_ROOT / "data" / "combined_ham_bcn" / "combined_manifest.csv",
+        help="Optional additional overlap manifest; the selected run and all ancestors are always audited.",
     )
     parser.add_argument("--model-name", default="best_model.keras")
     parser.add_argument("--batch-size", type=int, default=2)
@@ -134,26 +135,30 @@ def sha256_file(path: Path) -> str:
 
 
 def audit_exact_overlap(
-    frame: pd.DataFrame, training_manifest: Path, workers: int
+    frame: pd.DataFrame, training_manifest: Path | list[Path], workers: int
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     if workers < 1:
         raise ValueError("--hash-workers must be at least 1.")
-    if not training_manifest.exists():
-        raise FileNotFoundError(f"Training manifest not found: {training_manifest}")
-    training_columns = pd.read_csv(training_manifest, nrows=0).columns
-    use_columns = ["sha256"]
-    if "patient_id" in training_columns:
-        use_columns.append("patient_id")
-    # IDs are strings, including leading zeros. Explicit dtypes also avoid
-    # pandas chunk-concatenation failures with mixed-source patient IDs.
-    training_frame = pd.read_csv(
-        training_manifest, usecols=use_columns, dtype="string", low_memory=False
-    )
+    manifests = [training_manifest] if isinstance(training_manifest, (str, Path)) else list(training_manifest)
+    if not manifests:
+        raise ValueError("At least one recorded exposure manifest is required.")
+    training_frames = []
+    for manifest in manifests:
+        if not Path(manifest).is_file():
+            raise FileNotFoundError(f"Training manifest not found: {manifest}")
+        columns = pd.read_csv(manifest, nrows=0).columns
+        use_columns = ["sha256"] + [name for name in ("patient_id", "source") if name in columns]
+        training_frames.append(pd.read_csv(manifest, usecols=use_columns, dtype="string", low_memory=False))
+    training_frame = pd.concat(training_frames, ignore_index=True)
     if training_frame["sha256"].isna().any():
         raise ValueError("Training manifest contains missing SHA-256 hashes.")
     training_hashes = set(training_frame["sha256"])
     if "patient_id" in training_frame:
-        training_patients = set(training_frame["patient_id"].dropna().astype(str))
+        # Unlinked source-local patient IDs must not collide merely by spelling.
+        patient_rows = training_frame
+        if "source" in patient_rows:
+            patient_rows = patient_rows.loc[patient_rows.source.isna() | patient_rows.source.eq("DERM12345")]
+        training_patients = set(patient_rows["patient_id"].dropna().astype(str).str.split("::").str[-1])
         patient_overlap = training_patients & set(frame["patient_id"].astype(str))
         if patient_overlap:
             raise RuntimeError(
@@ -278,6 +283,7 @@ def main() -> None:
     )
     if finalization.get("status") != "complete":
         raise RuntimeError("Refusing external evaluation of a run that is not finalized.")
+    binding = verify_inference_binding(run_dir, model_path, finalization)
     config = json.loads((run_dir / "run_config.json").read_text(encoding="utf-8"))
     schema = json.loads((run_dir / "metadata_schema.json").read_text(encoding="utf-8"))
     calibration = json.loads((run_dir / "calibration.json").read_text(encoding="utf-8"))
@@ -299,8 +305,11 @@ def main() -> None:
     frame = load_metadata(args.metadata.resolve(), args.dataset_root.resolve(), binary_target)
     print(f"Auditing {len(frame)} external images for training overlap.", flush=True)
     original_image_count = int(len(frame))
+    exposure_manifests, ancestry = recorded_exposure_manifests(model_path, PROJECT_ROOT)
+    if args.training_manifest is not None:
+        exposure_manifests.append(args.training_manifest.resolve())
     frame, external_duplicates = audit_exact_overlap(
-        frame, args.training_manifest.resolve(), args.hash_workers
+        frame, exposure_manifests, args.hash_workers
     )
     external_duplicates.to_csv(
         run_dir / "derm12345_external_exact_duplicates.csv", index=False
@@ -348,7 +357,10 @@ def main() -> None:
     )
     results = {
         "dataset": "DERM12345 official patient-level test split",
-        "development_status": "locked_external_test_not_used_for_threshold_selection",
+        "development_status": "external_development_cohort_previously_inspected_not_fresh_confirmation",
+        "inference_binding": binding,
+        "recorded_exposure_audit": ancestry,
+        "additional_overlap_manifests": [str(args.training_manifest.resolve())] if args.training_manifest is not None else [],
         "binary_target": binary_target,
         "model": args.model_name,
         "tta_transforms": tta_transforms,

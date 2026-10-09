@@ -38,11 +38,29 @@ def row_dataset(frame: pd.DataFrame, seed: int):
     return lesions.enumerate().map(choose)
 
 
-def exposure_audit(frame: pd.DataFrame, alpha: float = .5, positive_fraction: float = .45) -> dict:
+def stratum_mass(frame: pd.DataFrame, alpha: float, mass_unit: str = "image") -> float:
+    """Count independent lesions or legacy photographs for stratum allocation."""
+    if mass_unit not in {"image", "lesion"}:
+        raise ValueError("Unsupported sampling mass unit.")
+    if not np.isfinite(alpha) or not 0 <= alpha <= 1:
+        raise ValueError("Invalid sampling exponent.")
+    if frame.empty:
+        raise ValueError("Sampling strata cannot be empty.")
+    if mass_unit == "lesion":
+        if "lesion_id" not in frame or frame.lesion_id.isna().any():
+            raise ValueError("Lesion sampling mass requires complete lesion identities.")
+        count = frame.lesion_id.nunique()
+    else:
+        count = len(frame)
+    return float(count ** alpha)
+
+
+def exposure_audit(frame: pd.DataFrame, alpha: float = .5, positive_fraction: float = .45,
+                   mass_unit: str = "image") -> dict:
     if not 0 <= alpha <= 1 or not 0 < positive_fraction < 1:
         raise ValueError("Invalid sampling policy.")
     groups = list(frame.groupby(["source", "diagnosis"], sort=True))
-    totals = {label: sum(len(g) ** alpha for _, g in groups if int(g.target.iloc[0]) == label)
+    totals = {label: sum(stratum_mass(g, alpha, mass_unit) for _, g in groups if int(g.target.iloc[0]) == label)
               for label in (0, 1)}
     if min(totals.values()) <= 0:
         raise ValueError("Sampling needs both binary classes.")
@@ -50,7 +68,7 @@ def exposure_audit(frame: pd.DataFrame, alpha: float = .5, positive_fraction: fl
     for (source, diagnosis), group in groups:
         _, _, counts = lesion_rows(group)
         label = int(group.target.iloc[0])
-        mass = (positive_fraction if label else 1 - positive_fraction) * len(group) ** alpha / totals[label]
+        mass = (positive_fraction if label else 1 - positive_fraction) * stratum_mass(group, alpha, mass_unit) / totals[label]
         report.append({"source": str(source), "diagnosis": str(diagnosis), "target": label,
             "images": len(group), "lesions": len(counts), "source_diagnosis_probability": mass,
             "maximum_photos_per_lesion": int(counts.max()),
@@ -60,6 +78,8 @@ def exposure_audit(frame: pd.DataFrame, alpha: float = .5, positive_fraction: fl
             "old_max_lesion_probability": float(mass * counts.max() / counts.sum()),
             "new_each_lesion_probability": float(mass / len(counts))})
     return {"training_images": len(frame), "lesions": int(sum(g["lesions"] for g in report)),
-        "positive_fraction": positive_fraction, "sampling_alpha": alpha, "strata": report,
-        "source_class_mass_preserved": True, "deleted_images": 0, "changed_labels": 0,
+        "positive_fraction": positive_fraction, "sampling_alpha": alpha,
+        "sampling_mass_unit": mass_unit, "strata": report,
+        "source_class_mass_preserved": mass_unit == "image",
+        "binary_class_mass_preserved": True, "deleted_images": 0, "changed_labels": 0,
         "limitation": "Exposure is equal within source/diagnosis only, not globally or per patient. All photos remain eligible; a budget need not visit every photograph."}

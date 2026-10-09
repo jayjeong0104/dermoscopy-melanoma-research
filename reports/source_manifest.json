@@ -1,5 +1,6 @@
 {
-  "purpose": "SHA-256 of the original research source at publication; publication-only files are tracked by Git.",
+  "snapshot_date": "2026-10-09",
+  "purpose": "SHA-256 of synchronized workspace research source; publication-only files are tracked separately by Git.",
   "files": [
     {
       "file": "analyze_recovery_errors.py",
@@ -11,7 +12,11 @@
     },
     {
       "file": "assess_market_readiness.py",
-      "sha256": "eaee98b49d77dd8a164a501b055f479e545a5ed529b7a7e9e6900390f7628a8b"
+      "sha256": "fa311a60d03cf8155f33ebbc7a50314c71fde9eaca3590cad8d69041fa723cb8"
+    },
+    {
+      "file": "audit_data_pipeline.py",
+      "sha256": "804a43e683624aaaa6c366deba9c1dc923c199439d2024a08f295b42c590147b"
     },
     {
       "file": "audit_error_reduction.py",
@@ -34,12 +39,20 @@
       "sha256": "f88dc0806b22719613decb0cd7a9671fa56d6c7c5c6b4c9bcda4e76550c36efb"
     },
     {
+      "file": "audit_training_head_selection.py",
+      "sha256": "c0911c5804f40ac893d8190305bc3c8cdb75dfb2c95e23d982df2ea10e8353bd"
+    },
+    {
       "file": "build_grouped_folds.py",
       "sha256": "a286870a63ec5a489eda3f6228035bd5580af028e5670063b138fa9645060924"
     },
     {
       "file": "build_siim_training_folds.py",
       "sha256": "39101a22996c68d888d1af63c4bae5abe3475d1e47bc3b163b3882cb718f97b9"
+    },
+    {
+      "file": "checkpoint_lesion_scores.py",
+      "sha256": "32e047366dedc6ccdb7821769d4da0b44037054196eb3bb48b0eaa446b3bf28d"
     },
     {
       "file": "compare_model_runs.py",
@@ -54,16 +67,24 @@
       "sha256": "c26896b08aa3dfc46e82fb5244a6646eed426acde6365c46fa6a57b93f76911f"
     },
     {
+      "file": "development_evaluation.py",
+      "sha256": "e73952672f6f49440b0261bd855da7a6dd80b8f97bc924bff9257ed5243e844d"
+    },
+    {
       "file": "diagnosis_probe.py",
-      "sha256": "42a1884e102d3dae5f4814eb7fa1398e0e9711013c56aa3c39bc54bac2448c2b"
+      "sha256": "b4c5d9f5313634c0d23672a398a6fa30b4f3b024433c6520364477a913e1c729"
     },
     {
       "file": "evaluate_derm12345.py",
-      "sha256": "61ef54bc6ae7e2882fe6f29ff0d470288cc03b01631ab8f64bf5167f2e763b35"
+      "sha256": "52b59303e5016dfc102f6b5b5e8bdc270aec71196dd85455266f1ffc84fad693"
+    },
+    {
+      "file": "evaluate_hiba.py",
+      "sha256": "a315197f4c15d4e0f5da6ed8712641edad5d29709ccb87ddc06a4c58cfa0bfae"
     },
     {
       "file": "evaluate_multitask_ph2.py",
-      "sha256": "536462b6d171562468a3c3dd3f2e1edc2895b1691825853633cd5ff3c89f2481"
+      "sha256": "7cdfdb11c8b932dbe15269f7f21aed6109a9b5c1bedcdb143e07ac61f2e8edfd"
     },
     {
       "file": "evaluate_ph2.py",
@@ -86,6 +107,14 @@
       "sha256": "d5629c62a1a60a7c7dbe12d57592727cc34af49c97cf5e1d2948135326d4e31b"
     },
     {
+      "file": "external_evaluation_contract.py",
+      "sha256": "e14ac1f1c76b080102ac37009580f436109acf529bee41ec1bfb5ed7ab98a21d"
+    },
+    {
+      "file": "extract_clean_reference.py",
+      "sha256": "1378e6c88d9ab7f75cf973a09fa80d38fb8aadb7fd4bcf67d73b30a391f97857"
+    },
+    {
       "file": "extract_foundation_features.py",
       "sha256": "64fab9daf51bcdba4df7cb565eb4b15ca990e97718e2f73de1b6dd7e156bf0ed"
     },
@@ -95,15 +124,27 @@
     },
     {
       "file": "finalize_multitask_run.py",
-      "sha256": "d2e831df0040485f5e6ff8b080a6f58aa5e280bd37bef0b4a2fdaf1a69a1a59b"
+      "sha256": "00659bf2e95339ebbd1c887f19637c6b927e85c6edd6129a0d4d5a4805d85350"
     },
     {
       "file": "foundation_common.py",
       "sha256": "2861dd0b5bef9130e82994949bb057aef9f9287e73f5e0e7e7b55b2c2a6d992b"
     },
     {
+      "file": "high_recall_selection.py",
+      "sha256": "e5da613db596fef48adcb49c450c850b32ec3b18ff0a68a83ee218dc641ff291"
+    },
+    {
+      "file": "launch_clean_training.sh",
+      "sha256": "c3d9e6f6f6e88cfe39264acf900d6a7666b66f20ce7fb32e551b912f8ca97389"
+    },
+    {
       "file": "launch_context_study.sh",
       "sha256": "af1fb3b99f7d78c6294a5334b65ab44349c5be98226be7d582e43b2ae5137576"
+    },
+    {
+      "file": "launch_convergence_study.ps1",
+      "sha256": "c7bf047967a63f845324efa3bf7247a8307416f6fa75503474fa840683167121"
     },
     {
       "file": "launch_diagnosis_study.sh",
@@ -122,8 +163,20 @@
       "sha256": "3a114458903add2c78b77766c7081e88eaed2ade82352eefbe7a4b26e0f8d573"
     },
     {
+      "file": "launch_natural_extraction.sh",
+      "sha256": "d8f4fc8233d1d5c041337fe0fe222a553ed518ddb4d79c61fde82c52f751571c"
+    },
+    {
       "file": "launch_operating_recovery.sh",
       "sha256": "1a9ee8bfd256ef4cfe2c40ee2f40c54dae493b9cfdc296e5b75f6956d574b283"
+    },
+    {
+      "file": "launch_precision_extraction.sh",
+      "sha256": "943f2da849e4d6154713484c391f29925b65c74a690fa504e4e6f491b787e185"
+    },
+    {
+      "file": "launch_precision_heads.ps1",
+      "sha256": "c039a6b3e3904516c604b1a8f544938e96645c5a73b16cff136a274218dff459"
     },
     {
       "file": "launch_recovery_pilot.sh",
@@ -143,7 +196,7 @@
     },
     {
       "file": "lesion_sampling.py",
-      "sha256": "3ee79ccfdb602b0210b88ac2ac73bdf9557a99f15457265d020ee22eeaa55bb9"
+      "sha256": "4ed70df797491f7e4affe05f57af16fa5b17aec6e72dd87bf0b2be7e797059c0"
     },
     {
       "file": "operating_policy.py",
@@ -155,11 +208,11 @@
     },
     {
       "file": "prepare_derm12345_training.py",
-      "sha256": "1269c303f83ab4d9966ec41cce85dbacc3cf6d41a13b718545f28493ec7c788e"
+      "sha256": "db02b5bcad802ffcb470faac9ee8119c2d1398d031b1ad259643e70bc96fa265"
     },
     {
       "file": "prepare_siim_isic2020.py",
-      "sha256": "60c9a50a1d530820ef1679f6ac0d242763b52d027c55862f0562d24b7ab9134e"
+      "sha256": "b5eacdd8526cbd0b5b877eeb7eb736566073045a7545774b2d631acf396e46a1"
     },
     {
       "file": "probe_gpu_libraries.py",
@@ -171,7 +224,23 @@
     },
     {
       "file": "register_foundation_io_repair.py",
-      "sha256": "0cd6349b8aa97f8448ae6dffa016f7c7c439fe7232708860e9f52a02a2a82ee6"
+      "sha256": "6e0a9d7a7902e94d3ee6d14894f59e1a4e49921ff9f49559d99bcfa0e0d76f05"
+    },
+    {
+      "file": "review_hiba_overlap.py",
+      "sha256": "b4072240ef65781f89ac25c9cbcc47972233434e05ab972c301ca4e2a9423d93"
+    },
+    {
+      "file": "review_natural_progress.py",
+      "sha256": "019d9bc35ffe7f9e944a24e3698e0d3ec990a769431fa62a1cc80abd49879b6f"
+    },
+    {
+      "file": "run_clean_panderm_review.py",
+      "sha256": "064e48be5aa7a8d93fd2a8cc8c0a0bd6acdae47718c8b5df947e332e3eb452bf"
+    },
+    {
+      "file": "run_clean_training.py",
+      "sha256": "3978c36ddfe9a2881c4ef74cf8f597821e5584d77800f410dd4637213cb201ae"
     },
     {
       "file": "run_context_study.py",
@@ -182,6 +251,10 @@
       "sha256": "e0227b2b01f181c4c95d323d2ce3b60956f00ceda088f5fbb4ee7f5bae5e8c07"
     },
     {
+      "file": "run_corrected_clean_heads.py",
+      "sha256": "8ba8a47c0ac43002d9f9eea344d662fd40192e6b2c30fd769d7006887c5153cf"
+    },
+    {
       "file": "run_diagnosis_study.py",
       "sha256": "5e275ee223878ea3252e4e4d85a9b78f9033e983b09039eebb75868b2a35d291"
     },
@@ -190,8 +263,16 @@
       "sha256": "e8996da4eb98de701b30a25974e1f210569ca8bb04201b7665dc4886424798f4"
     },
     {
+      "file": "run_natural_feature_heads.py",
+      "sha256": "d0ae0a2a1e2171aa42f28ad68a7ca7b1132d0f5668cead9f8b75dda689286af4"
+    },
+    {
       "file": "run_operating_recovery.py",
       "sha256": "1da00405d1c8880ac312679275cc37df45a2b0148250b8668cbc93bb019450c9"
+    },
+    {
+      "file": "run_precision_rebuild.py",
+      "sha256": "3e9be0869984facb2521d3054dd2f5862753eb4c88bdbdc16a254384587e3c18"
     },
     {
       "file": "run_recovery_pilot.py",
@@ -219,7 +300,7 @@
     },
     {
       "file": "smoke_test_multitask_v2.py",
-      "sha256": "3967781ac0c83748ed7a1af8804769ede4896c550a3b44afecec1f9a6117cd59"
+      "sha256": "7aef8a90be6dc2b9ccd2c51097ec49515990d591de6ddb05da048aa50f1da059"
     },
     {
       "file": "study_precision.py",
@@ -242,6 +323,22 @@
       "sha256": "c363aa2bd9be23d94976bf03ee931822730c863aa1303fbcfc62b5c77e50bf84"
     },
     {
+      "file": "test_checkpoint_lesion_scores.py",
+      "sha256": "04098dd6ba133e23a358a338aa67c09e8176d8daaea3d697bd895823dfb59ad8"
+    },
+    {
+      "file": "test_clean_panderm_review.py",
+      "sha256": "e4b7f3552c11f8b3b17ad0eaff008e8ac657d78c4e268da658c790211c638a9d"
+    },
+    {
+      "file": "test_clean_reference_features.py",
+      "sha256": "9430b9a37e157144e440b290ba76c11134f3bd6ab07b39bf6c66c7e94c49a1fc"
+    },
+    {
+      "file": "test_clean_training.py",
+      "sha256": "bf0eb09d6d1856b6ddc40c8f9e0a7e240dda1086099b17a6058075b9530a48ad"
+    },
+    {
       "file": "test_compare_model_runs.py",
       "sha256": "7fe0f72b7aa1a0ff264c8fb52652a2032e5bfb4c8939371d9a734d9b9291d295"
     },
@@ -254,28 +351,68 @@
       "sha256": "d03a2308bad5c3d87522d8619244607952ff45ef329251ddef77f0ae81016cbd"
     },
     {
+      "file": "test_development_evaluation.py",
+      "sha256": "95ee73fdb4e2da455f1700e9814edc7e1c98250125fca4da88f25cc108d7af97"
+    },
+    {
       "file": "test_diagnosis_study.py",
-      "sha256": "719a99e5a96d61b6e68991eaf8eec078e9a1568e66bf4b8cd9e55de1af5c8120"
+      "sha256": "4955185693d48f3ca6c631bd12e59a044e754f106217089cccb5402e244fd48a"
     },
     {
       "file": "test_error_reduction.py",
       "sha256": "14d632978f5efd541bf2c40ac3ee63e45d15900f2ec596baeaefb150a7cd91d1"
     },
     {
+      "file": "test_evaluate_hiba.py",
+      "sha256": "67df03136b713a98dd9b6467d997a345fe3d14b6e18984f80cb11735eacd5bc1"
+    },
+    {
+      "file": "test_external_evaluation_contract.py",
+      "sha256": "0f0727775d767ea734b6225ef870e10a3e2f55a68c21bd74ab3c71a3fb3f4bfa"
+    },
+    {
       "file": "test_foundation_experiment.py",
       "sha256": "ab5a38d4fa14a8f6f2d707568614e12aeb7d20831175850dcbf3bb44df010c47"
     },
     {
+      "file": "test_high_recall_selection.py",
+      "sha256": "edc848aaccdeb0f7f16c9aab1f18db9f1dde56e6dfa449a839213c10517ff0ae"
+    },
+    {
       "file": "test_lesion_sampling.py",
-      "sha256": "9db0590806b88265bd03023f4a1cdfa2e5b2c1a49be212efbd0fc977e67f5913"
+      "sha256": "21b20cee068972e7b6364cbe8c31dc9ed3851e6bdc35c904c2695523639a70cc"
+    },
+    {
+      "file": "test_natural_feature_heads.py",
+      "sha256": "e7be2ca4b4242992b60f830bc3b6723d4650a0a7e7f85bc51db57b8db915ab56"
+    },
+    {
+      "file": "test_natural_progress.py",
+      "sha256": "b7076a446fe39a8e9d39ba5bffd2672432cdb9326e768abb1316c9b47029b4a6"
     },
     {
       "file": "test_operating_policy.py",
       "sha256": "ff9e05cbdc71610e70631b317396f29748c48f0c993bd02d9489345936ad481a"
     },
     {
+      "file": "test_precision_rebuild.py",
+      "sha256": "847980930ac56ed28e3c723b1c0119a1917acdef10838b13a8f6b0389133c269"
+    },
+    {
       "file": "test_precision_study.py",
       "sha256": "511b0fe2488b817d0ce8be48012970d7f9788367348e960b4f8768c0542fde8e"
+    },
+    {
+      "file": "test_prepare_derm12345_training.py",
+      "sha256": "e06e0deac1044853f054767b0cf07c967d2fcf8914d1cc4672c5c840d891378e"
+    },
+    {
+      "file": "test_prepare_siim_isic2020.py",
+      "sha256": "c68c6e983761844c78188c64f223f5a1079977646ebac3708679abd1678eb41d"
+    },
+    {
+      "file": "test_reporting_evidence.py",
+      "sha256": "990f430ae3eaa2c2f1441710e5af851bdce1a94d8bacb478477835e877ce6977"
     },
     {
       "file": "test_run_operating_recovery.py",
@@ -299,7 +436,23 @@
     },
     {
       "file": "test_train_multitask_helpers.py",
-      "sha256": "132003008581345d3c2aa553535ca3f7655b2298093724ba86c81514f72a86b8"
+      "sha256": "f1559d909d87a87cd269eb1e4b42cbc24394616939ff099736a4be6c51bdd085"
+    },
+    {
+      "file": "test_training_provenance.py",
+      "sha256": "dc62a5f66eafa4545675c678e18d1f7cca1b311f4f2b541e73b4a80ec2ff0b25"
+    },
+    {
+      "file": "test_training_recovery_and_metrics.py",
+      "sha256": "051edfd6b051171b396ff0d319279cebe081078d5291f3d27f3a6f9d22be5752"
+    },
+    {
+      "file": "test_training_thresholds.py",
+      "sha256": "c2d711ec2eb7ea32b241d78e683b2bc0702564c9c22bb92e663d60d42df137fc"
+    },
+    {
+      "file": "test_validation_pass_policy.py",
+      "sha256": "ed71f7ffb49a57c9198ce37842ac87da8df53725718ec24dbd857eceb0041b77"
     },
     {
       "file": "train_foundation_head.py",
@@ -307,7 +460,7 @@
     },
     {
       "file": "train_multitask.py",
-      "sha256": "ad66c8bb0c61891205c479c4e1a7ab4fbe22d5b17e34446999f33189ce26752d"
+      "sha256": "c5381026d71ff3fb6f374d290157e1fe204cb48c831b7d78b741f215d9d3ae58"
     },
     {
       "file": "train_transfer.py",
@@ -316,6 +469,14 @@
     {
       "file": "train.py",
       "sha256": "4b95c08ec72a24c0c5c5217a221362a8411b9a868d5deb6f44971a55c5ac5bf7"
+    },
+    {
+      "file": "training_callback_state.py",
+      "sha256": "d33d140380e91e2a34aa760ab114cdf2afb4cabfa1e382fc560a557b1b0f6969"
+    },
+    {
+      "file": "training_provenance.py",
+      "sha256": "81e79fd0033c1c59cc3437448201cdd60fb2807c870c4ec76f6a77cb63efe70c"
     },
     {
       "file": "verify_duplicates.py",

@@ -16,6 +16,7 @@ import tensorflow as tf
 
 import train_multitask as training
 from evaluate_ph2 import load_ph2_dataframe
+from external_evaluation_contract import verify_inference_binding
 
 
 def parse_args() -> argparse.Namespace:
@@ -72,6 +73,7 @@ def main() -> None:
     )
     if finalization.get("status") != "complete":
         raise RuntimeError("Refusing external evaluation of a run that is not finalized.")
+    binding = verify_inference_binding(run_dir, model_path, finalization)
     config = json.loads((run_dir / "run_config.json").read_text(encoding="utf-8"))
     schema = json.loads((run_dir / "metadata_schema.json").read_text(encoding="utf-8"))
     calibration = json.loads((run_dir / "calibration.json").read_text(encoding="utf-8"))
@@ -120,6 +122,8 @@ def main() -> None:
     )
     metrics = {
         "dataset": "PH2",
+        "development_status": "external_development_cohort_previously_inspected_not_fresh_confirmation",
+        "inference_binding": binding,
         "model": args.model_name,
         "binary_target": binary_target,
         "tta_transforms": tta_transforms,

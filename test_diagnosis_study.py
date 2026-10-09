@@ -2,6 +2,7 @@ import hashlib
 import json
 from pathlib import Path
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -65,6 +66,50 @@ class DiagnosisStudyTests(unittest.TestCase):
                 probe.fit(x, values, l2, classes=classes)
         with self.assertRaises(RuntimeError):
             probe.fit(x, labels, .01, maxiter=1, classes=classes)
+
+    def test_iteration_limit_accepts_independently_verified_optimum(self):
+        x, labels, classes = self.data()
+        parameters, _ = probe.fit(x, labels, .01, classes=classes)
+        theta = np.vstack((parameters["weights"], parameters["bias"])).ravel()
+        result = SimpleNamespace(x=theta, success=False, status=1, nit=2000, nfev=2100,
+            message="STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT")
+        with patch.object(probe, "minimize", return_value=result):
+            restored, report = probe.fit(x, labels, .01, classes=classes)
+        np.testing.assert_allclose(probe.probabilities(restored, x), probe.probabilities(parameters, x))
+        self.assertLessEqual(report["gradient_max_abs"], 1e-6)
+        self.assertFalse(report["solver_success"])
+        self.assertEqual(report["solver_status"], 1)
+        self.assertEqual(report["solver_message"], result.message)
+        self.assertEqual(report["termination_acceptance"], "first_order_optimality_at_iteration_limit")
+
+    def test_solver_success_also_requires_finite_first_order_optimality(self):
+        x, labels, classes = self.data()
+        parameters, _ = probe.fit(x, labels, .01, classes=classes)
+        optimum = np.vstack((parameters["weights"], parameters["bias"])).ravel()
+        for success, status, message in ((True, 0, "CONVERGENCE"),
+                (False, 1, "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT")):
+            for theta in (np.zeros_like(optimum), np.full_like(optimum, np.nan)):
+                result = SimpleNamespace(x=theta, success=success, status=status,
+                    nit=2000, nfev=2100, message=message)
+                with self.subTest(success=success, finite=bool(np.isfinite(theta).all())), \
+                        patch.object(probe, "minimize", return_value=result), \
+                        np.errstate(invalid="ignore"):
+                    with self.assertRaisesRegex(RuntimeError, "did not converge"):
+                        probe.fit(x, labels, .01, classes=classes)
+
+    def test_other_solver_failures_rejected_even_at_optimum(self):
+        x, labels, classes = self.data()
+        parameters, _ = probe.fit(x, labels, .01, classes=classes)
+        theta = np.vstack((parameters["weights"], parameters["bias"])).ravel()
+        for status, message in ((2, "ABNORMAL: LINE SEARCH FAILED"),
+                (1, "STOP: TOTAL NO. OF F,G EVALUATIONS EXCEEDS LIMIT"),
+                (2, "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT")):
+            result = SimpleNamespace(x=theta, success=False, status=status,
+                nit=2000, nfev=2100, message=message)
+            with self.subTest(message=message, status=status), \
+                    patch.object(probe, "minimize", return_value=result):
+                with self.assertRaisesRegex(RuntimeError, "did not converge"):
+                    probe.fit(x, labels, .01, classes=classes)
 
     def test_npz_and_real_tensorflow_export_roundtrip(self):
         x, labels, classes = self.data()

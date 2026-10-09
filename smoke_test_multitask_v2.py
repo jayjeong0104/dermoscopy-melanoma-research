@@ -58,6 +58,7 @@ def main() -> None:
     high_risk.set_weights([np.zeros_like(kernel), np.full_like(bias, 12.0)])
     uncapped = model({"image": images, "metadata": metadata_a}, training=False)["high_risk"]
     assert float(tf.reduce_min(uncapped)) > 0.99, "Risk output is still capped below one."
+    high_risk.set_weights([kernel, bias])
 
     labels = {
         "high_risk": np.array([[0.0], [1.0]], dtype=np.float32),
@@ -67,11 +68,17 @@ def main() -> None:
         "high_risk": np.ones(2, dtype=np.float32),
         "diagnosis": np.array([0.0, 1.0], dtype=np.float32),
     }
-    model.train_on_batch(
-        {"image": images, "metadata": metadata_a},
-        labels,
-        sample_weight=sample_weights,
-    )
+    before = [variable.numpy().copy() for variable in model.trainable_variables]
+    iterations_before = int(model.optimizer.iterations.numpy())
+    for _ in range(2):
+        model.train_on_batch(
+            {"image": images, "metadata": metadata_a},
+            labels,
+            sample_weight=sample_weights,
+        )
+    assert int(model.optimizer.iterations.numpy()) > iterations_before, "No accumulated optimizer update occurred."
+    assert any(not np.array_equal(old, variable.numpy())
+               for old, variable in zip(before, model.trainable_variables)), "Trainable weights did not update."
 
     with tempfile.TemporaryDirectory() as directory:
         path = Path(directory) / "smoke.keras"
@@ -81,6 +88,11 @@ def main() -> None:
             {"image": images, "metadata": metadata_a}, training=False
         )["high_risk"]
         assert restored_output.shape == (2, 1)
+        np.testing.assert_allclose(
+            restored_output.numpy(),
+            model({"image": images, "metadata": metadata_a}, training=False)["high_risk"].numpy(),
+            atol=1e-6,
+        )
 
     print("Multitask v2 architecture, loss, training step, and serialization passed.")
 

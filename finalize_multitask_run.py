@@ -550,7 +550,8 @@ def save_final_metrics(
     val_image_probability = training.apply_temperature(val_image_raw, temperature)
     test_image_probability = training.apply_temperature(test_image_raw, temperature)
     balanced_threshold, operating_threshold, threshold_rows = training.select_thresholds(
-        val_truth, val_probability, minimum_recall
+        val_truth, val_probability, minimum_recall,
+        method=config.get("threshold_selection", "legacy_grid"),
     )
     balanced_threshold = add_confidence_intervals(balanced_threshold)
     operating_threshold = add_confidence_intervals(operating_threshold)
@@ -654,6 +655,7 @@ def save_final_metrics(
     diagnosis_results = training.diagnosis_metrics(
         test_lesions["diagnosis_index"].to_numpy(dtype="int32"),
         test_lesion_diagnosis,
+        training.diagnosis_supervision_mask(test_lesions),
     )
 
     image_truth = test_frame["target"].to_numpy(dtype="int32")
@@ -709,7 +711,8 @@ def save_final_metrics(
         ),
     }
     image_diagnosis_results = training.diagnosis_metrics(
-        test_frame["diagnosis_index"].to_numpy(dtype="int32"), test_diagnosis
+        test_frame["diagnosis_index"].to_numpy(dtype="int32"), test_diagnosis,
+        training.diagnosis_supervision_mask(test_frame),
     )
     training.save_json(run_dir / "test_risk_metrics.json", risk_results)
     training.save_json(run_dir / "test_diagnosis_metrics.json", diagnosis_results)

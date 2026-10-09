@@ -47,13 +47,26 @@ def fit(x, diagnoses, l2, seed=0, callback=None, maxiter=2000, classes=CLASSES):
                  "gtol": 1e-8, "ftol": 1e-15})
     loss, gradient = objective_gradient(result.x, z, y, l2, len(classes))
     norm = float(np.max(np.abs(gradient)))
-    if not result.success or not np.isfinite(loss) or norm > 1e-6:
+    # SciPy's stopping target is stricter than the declared first-order
+    # acceptance criterion. A finite convex fit can reach the iteration limit
+    # after satisfying that criterion; independently verify it instead of
+    # treating the solver's iteration budget as evidence of a bad optimum.
+    # Abnormal line searches and function-evaluation limits still fail closed.
+    iteration_limit = (result.status == 1 and
+        "ITERATIONS REACHED LIMIT" in str(result.message).upper())
+    first_order_optimal = (np.isfinite(result.x).all() and np.isfinite(loss)
+        and np.isfinite(gradient).all() and norm <= 1e-6)
+    if not first_order_optimal or not (result.success or iteration_limit):
         raise RuntimeError(f"Diagnosis head did not converge: {result.message}; max gradient={norm:g}")
     coefficients = result.x.reshape(initial.shape)
     parameters = {"mean": mean, "scale": scale, "weights": coefficients[:-1],
         "bias": coefficients[-1] - coefficients[-1].mean(), "classes": np.asarray(classes)}
     return parameters, {"objective": loss, "gradient_max_abs": norm, "iterations": int(result.nit),
-        "function_evaluations": int(result.nfev), "converged": True, "l2": l2, "seed": seed}
+        "function_evaluations": int(result.nfev), "solver_success": bool(result.success),
+        "solver_status": int(result.status), "solver_message": str(result.message),
+        "convergence_criterion": "finite objective and coefficients; max absolute analytic gradient <= 1e-6",
+        "termination_acceptance": "solver_success" if result.success else "first_order_optimality_at_iteration_limit",
+        "converged": True, "l2": l2, "seed": seed}
 
 
 def load_parameters(path):

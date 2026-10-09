@@ -22,6 +22,55 @@ from prepare_siim_isic2020 import map_diagnosis as map_siim_diagnosis
 
 
 class BinaryTargetTests(unittest.TestCase):
+    def test_new_head_configuration_and_metadata_policy(self) -> None:
+        with patch("sys.argv", ["train_multitask.py", "--head-normalization", "layernorm",
+                                "--training-metadata-policy", "unknown"]):
+            args = training.parse_args()
+        self.assertEqual(args.head_normalization, "layernorm")
+        self.assertEqual(args.training_metadata_policy, "unknown")
+        self.assertIn("head_normalization", training.RESUME_CONFIG_KEYS)
+        self.assertIn("training_metadata_policy", training.RESUME_CONFIG_KEYS)
+
+    def test_unmapped_nonmelanoma_cancer_uses_explicit_melanoma_target(self) -> None:
+        frame = pd.DataFrame({"diagnosis": ["UNKNOWN"], "diagnosis_label_available": [0],
+                              "target": [1], "melanoma_label": [0]})
+        self.assertEqual(training.configure_binary_target(frame, "melanoma").target.tolist(), [0])
+        for invalid in (None, 0.5, 1):
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                training.configure_binary_target(frame.assign(melanoma_label=invalid), "melanoma")
+
+    def test_layernorm_heads_are_serializable_and_independent_of_batch_companions(self) -> None:
+        tf = training.tf
+
+        def tiny_backbone(**kwargs):
+            image = tf.keras.Input(kwargs["input_shape"])
+            return tf.keras.Model(image, tf.keras.layers.Conv2D(4, 1)(image))
+
+        with patch.object(training, "backbone_builder", return_value=tiny_backbone):
+            model = training.build_model(96, 12, 0.0, 0.0, "image_only", "efficientnetv2b1", None,
+                                         head_normalization="layernorm")
+        normalization = model.get_layer("image_layer_norm")
+        self.assertIsInstance(normalization, tf.keras.layers.LayerNormalization)
+        self.assertIsInstance(model.get_layer("metadata_layer_norm"), tf.keras.layers.LayerNormalization)
+        first = tf.constant([[1., 2., 3., 4.]])
+        companion = tf.constant([[100., -20., 30., 50.]])
+        np.testing.assert_allclose(normalization(first, training=True).numpy(),
+            normalization(tf.concat([first, companion], axis=0), training=True).numpy()[:1], atol=1e-6)
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "layernorm.keras"
+            model.save(path)
+            restored = tf.keras.models.load_model(path, compile=False)
+            self.assertIsInstance(restored.get_layer("image_layer_norm"), tf.keras.layers.LayerNormalization)
+
+    def test_masked_training_metadata_matches_inference_for_different_sources(self) -> None:
+        frame = pd.DataFrame({"runtime_image_path": ["a.jpg", "b.jpg"], "target": [0, 1],
+            "diagnosis_index": [5, 4], "age_approx": [25, 75], "sex": ["female", "male"],
+            "anatom_site_general": ["face", "back"]})
+        encoder = training.MetadataEncoder.fit(frame)
+        masked = training._tensor_slices(frame, encoder, mask_metadata=True)[1]
+        np.testing.assert_array_equal(masked[0], masked[1])
+        self.assertEqual(float(masked[0, 1]), 1.0)
+
     def test_fixed_training_budget_is_optional_and_positive(self) -> None:
         with patch("sys.argv", ["train_multitask.py"]):
             args = training.parse_args()

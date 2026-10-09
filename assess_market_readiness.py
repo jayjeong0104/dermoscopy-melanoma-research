@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -107,7 +108,7 @@ def metric_gates(
             evidence = f"{label} {metric_name} is unavailable."
         else:
             numeric = float(value)
-            status = "passed" if numeric >= target else "failed"
+            status = "passed" if math.isfinite(numeric) and target <= numeric <= 1 else "failed"
             evidence = f"{label} {metric_name}={numeric:.4f}; target>={target:.2f}."
         gates.append(
             gate(
@@ -140,7 +141,9 @@ def build_report(run_dir: Path, manifest: Path) -> dict[str, object]:
     subgroup = read_json(run_dir / "test_subgroup_metrics.json")
     decode_audit = read_json(run_dir / "test_jpeg_decode_findings.summary.json")
     model_path = run_dir / "best_model.keras"
-    sources = current_sources(manifest)
+    saved_training_manifest = run_dir / "train_split.csv"
+    source_manifest = saved_training_manifest if saved_training_manifest.exists() else manifest
+    sources = current_sources(source_manifest)
 
     gates: list[dict[str, str]] = []
     finalized = bool(finalization and finalization.get("status") == "complete")
@@ -180,8 +183,9 @@ def build_report(run_dir: Path, manifest: Path) -> dict[str, object]:
         gate(
             "patient_lesion_hash_separation",
             "data",
-            "passed" if split_integrity else "missing",
-            "Saved train/validation/test splits passed group, lesion, and exact-hash checks."
+            "manual_review_required" if split_integrity else "missing",
+            "Recorded split checks cover available groups, lesions, and exact hashes; "
+            "complete patient linkage and checkpoint-ancestor separation are not verified by this report."
             if split_integrity
             else "No completed split-integrity stage is recorded.",
             "Rebuild patient-safe folds and rerun exact-hash leakage checks.",
@@ -226,9 +230,11 @@ def build_report(run_dir: Path, manifest: Path) -> dict[str, object]:
         gate(
             "independent_external_test",
             "clinical_evidence",
-            "passed" if derm is not None else "missing",
-            "Locked DERM12345 test results exist and were not used for threshold selection."
-            if derm
+            "manual_review_required" if derm is not None else "missing",
+            "DERM12345 results exist, but cohort independence is not verified. "
+            f"Recorded development status: {derm.get('development_status', 'unrecorded')}. "
+            "Local overlap checks and checkpoint bindings do not establish an untouched confirmatory cohort."
+            if derm is not None
             else "Locked DERM12345 results are absent.",
             "Run the locked external evaluator once, then freeze the result from tuning.",
         )
@@ -255,10 +261,11 @@ def build_report(run_dir: Path, manifest: Path) -> dict[str, object]:
         gate(
             "representative_subgroup_validation",
             "clinical_evidence",
-            "passed" if demographic_ready else "failed",
+            "manual_review_required" if demographic_ready else "failed",
             "Skin-tone and capture-device labels are absent for the evaluated cohort."
             if not demographic_ready
-            else "Required demographic and device subgroup labels are available.",
+            else "Required demographic and device labels are available; representative subgroup "
+            "performance and statistical power remain unverified.",
             (
                 "Acquire a prospectively powered, multi-site cohort representative of the "
                 "intended population and report subgroup confidence intervals."
@@ -274,14 +281,26 @@ def build_report(run_dir: Path, manifest: Path) -> dict[str, object]:
     if ph2 is not None:
         commercial_blockers.append("PH2")
     commercial_blockers = sorted(set(commercial_blockers))
+    unknown_sources = sorted(source for source in sources if source not in LICENSE_INVENTORY)
+    if commercial_blockers:
+        rights_status = "failed"
+        rights_evidence = "Commercial-use blockers: " + ", ".join(commercial_blockers)
+    elif not sources or unknown_sources:
+        rights_status = "missing"
+        rights_evidence = ("No usable training-source inventory is available." if not sources else
+                           "Training-source rights are unknown: " + ", ".join(unknown_sources))
+    else:
+        rights_status = "manual_review_required"
+        rights_evidence = "Listed source terms are conditional; this report does not verify " \
+                          "attribution, commercial permissions, or the complete checkpoint lineage."
+    if not saved_training_manifest.exists():
+        rights_evidence += " The supplied manifest is not bound to this run's saved training split."
     gates.append(
         gate(
             "commercial_data_rights",
             "legal",
-            "passed" if not commercial_blockers else "failed",
-            "Commercial-use blockers: " + ", ".join(commercial_blockers)
-            if commercial_blockers
-            else "No known non-commercial dataset is used by this run.",
+            rights_status,
+            rights_evidence,
             (
                 "Obtain written commercial rights or retrain and revalidate using only data "
                 "with a documented commercial provenance chain."
@@ -363,6 +382,8 @@ def build_report(run_dir: Path, manifest: Path) -> dict[str, object]:
         ),
         "performance_targets": PERFORMANCE_TARGETS,
         "training_sources": sources,
+        "training_source_manifest": str(source_manifest),
+        "training_sources_bound_to_saved_split": saved_training_manifest.exists(),
         "license_inventory": LICENSE_INVENTORY,
         "summary": {
             "passed": sum(item["status"] == "passed" for item in gates),
@@ -430,6 +451,7 @@ def format_metric(value: object) -> str:
 
 def write_model_card(path: Path, run_dir: Path) -> None:
     config = read_json(run_dir / "run_config.json") or {}
+    finalization = read_json(run_dir / "finalization_status.json") or {}
     split_summary = read_json(run_dir / "split_summary.json") or {}
     internal = read_json(run_dir / "test_risk_metrics.json") or {}
     derm = read_json(run_dir / "derm12345_external_metrics.json") or {}
@@ -455,7 +477,8 @@ def write_model_card(path: Path, run_dir: Path) -> None:
         "",
         f"- Endpoint: {config.get('binary_target', 'unknown')} classification.",
         "- Input: one centered dermoscopic image of one lesion.",
-        "- Output: calibrated research probability plus a validation-selected threshold.",
+        "- Output: model score and recorded threshold, when available; calibration quality "
+        "and threshold-selection provenance require separate verification.",
         "- Unsupported inputs: ordinary phone photographs, overview/body images, multiple "
         "lesions, mucosal/ocular lesions, poor-quality captures, or images from an unvalidated "
         "device/workflow.",
@@ -466,7 +489,7 @@ def write_model_card(path: Path, run_dir: Path) -> None:
         f"- Input resolution: {config.get('image_size', 'unknown')} x "
         f"{config.get('image_size', 'unknown')} pixels.",
         f"- Primary evaluation unit: {config.get('primary_evaluation_unit', 'lesion')}.",
-        f"- Test-time views: {config.get('tta_transforms', 1)}.",
+        f"- Test-time views: {finalization.get('tta_transforms', config.get('tta_transforms', 'unrecorded'))}.",
         "",
         "## Development data",
         "",
@@ -474,7 +497,9 @@ def write_model_card(path: Path, run_dir: Path) -> None:
         f"- Lesions: {full_dataset.get('lesions', 'unknown')}.",
         f"- Split groups/patients: {full_dataset.get('split_groups', 'unknown')}.",
         f"- Sources: {json.dumps(full_dataset.get('sources', {}), sort_keys=True)}.",
-        "- Splits are separated by lesion, patient/split group, and exact SHA-256 hash.",
+        "- Patient independence, exact-image separation, and checkpoint-ancestor exposure "
+        "require their recorded audits; this model card does not establish them. Available "
+        "split groups are not necessarily patient identifiers.",
         f"- Held-out decode audit: {decode_audit.get('images_checked', 'not run')} images, "
         f"{decode_audit.get('decoder_warnings', 'unknown')} recoverable warnings, "
         f"{decode_audit.get('decode_errors', 'unknown')} hard failures.",
@@ -483,12 +508,12 @@ def write_model_card(path: Path, run_dir: Path) -> None:
         "",
         "| Cohort/unit | Accuracy | Balanced accuracy | Sensitivity | Specificity |",
         "| --- | ---: | ---: | ---: | ---: |",
-        "| Internal held-out lesions | "
+        "| Internal recorded lesion split (independence unverified) | "
         f"{format_metric(internal_operating.get('accuracy'))} | "
         f"{format_metric(internal_operating.get('balanced_accuracy'))} | "
         f"{format_metric(internal_operating.get('recall'))} | "
         f"{format_metric(internal_operating.get('specificity'))} |",
-        "| DERM12345 patients | "
+        "| DERM12345 development patients | "
         f"{format_metric(derm_operating.get('accuracy'))} | "
         f"{format_metric(derm_operating.get('balanced_accuracy'))} | "
         f"{format_metric(derm_operating.get('recall'))} | "
@@ -499,8 +524,9 @@ def write_model_card(path: Path, run_dir: Path) -> None:
         f"{format_metric(ph2_operating.get('recall'))} | "
         f"{format_metric(ph2_operating.get('specificity'))} |",
         "",
-        "Metrics use a threshold selected only on internal validation data. PH2 has informed "
-        "development and is not a pristine commercial or final-confirmatory cohort.",
+        "Metrics use recorded thresholds; this card does not independently verify threshold "
+        "selection or cohort independence. PH2 and DERM12345 have informed development and "
+        "are not fresh confirmatory cohorts.",
         "",
         "## Known limitations",
         "",
